@@ -1,0 +1,128 @@
+---
+title: "Assignment week 4"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r include=FALSE, warning = FALSE, message = FALSE}
+library(dplyr)
+library(stringr)
+```
+
+### 1. Using the 173 majors listed in fivethirtyeight.com’s College Majors dataset [https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/], provide code that identifies the majors that contain either "DATA" or "STATISTICS"
+Load data
+```{r setup, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+majors <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv")
+```
+We will use grep function to check if column Major contains word "DATA" or "STATISTICS". 
+```{r}
+grep_output <- grep('DATA|STATISTICS',majors$Major, value = TRUE)
+grep_output
+```
+Using stringr
+```{r}
+stringr_output <- majors[str_detect(majors$Major, "STATISTICS|DATA"),]
+stringr_output
+```
+
+### 2. Write code that transforms the data below:
+[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+[13] "olive"        "salal berry"
+Into a format like this:
+c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+I didn't fully get this assignment, should I just create input and make output look like c("bell pepper", etc..)? 
+```{r}
+input_str <- '[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"
+[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+[13] "olive"        "salal berry"'
+input_str
+```
+Finding all quoted values:
+```{r}
+extract_berry <- unlist(str_extract_all(input_str, '"[^"]*"'))
+extract_berry 
+```
+Removing \":
+```{r}
+extract_berry_update <- str_remove_all(extract_berry, "\"")
+extract_berry_update
+```
+Writing the result in the required formed with c, parentheses
+```{r}
+final <- paste('c(', paste('"',extract_berry_update,'"',sep = "", collapse = ','), sep = "",')')
+str_view(final,'""')
+```
+
+### 3.Describe, in words, what these expressions will match:
+#### 3.1 (.)\1\1
+(.) 1st capturing group, would match any character except for for line terminators  <br>
+\1\1 would refer to the same text as previously matched by the first capturing group 2 times <br>
+We will need o create a string to use regular expression in R by using \\1 instead of \1.  <br>
+For example, 777 in 84572777. In other words, will show 3 characters repeated.
+```{r}
+stng_1 <- '84572777'
+str_view(stng_1, "(.)\\1\\1", match = TRUE)
+```
+
+#### 3.2 "(.)(.)\\2\\1"
+The regular expression is shown as a string with "" and \\  <br>
+(.)(.) 1st and 2nd capturing group, would match any character except for for line terminators  <br>
+\\2 would refer to the same text as previously matched by the second capturing group <br>
+\\1 would refer to the same text as previously matched by the first capturing group <br>
+For example, 4444 in 4564444rt. In other words, will show 4 characters repeated.
+```{r}
+stng_2 <- '4564444rt'
+str_view(stng_2, "(.)(.)\\2\\1", match = TRUE)
+```
+
+#### 3.3 (..)\1
+(..) would match any 2 characters except for for line terminators <br>
+\1 would refer to the same text as previously matched by the first capturing group <br>
+For example, 1414 in ssff1414slfs. In other words, will show 2 characters repeated twice.
+```{r}
+stng_3 <- 'ssff1414slfs'
+str_view(stng_3, "(..)\\1", match = TRUE)
+```
+#### 3.4 "(.).\\1.\\1"
+(.) 1st capturing group, would match any character except for for line terminators <br>
+. would match any character except for for line terminators/
+\\1 would refer to the same text as previously matched by the first capturing group <br>
+For example, e7e8e in e7e8e9e7. In other words, will return string if 1st character repeated on the 3rd and 5th positions as well as 2nd and 4th symbols.
+```{r}
+stng_4 <- 'e7e8e9e7'
+str_view(stng_4, "(.).\\1.\\1", match = TRUE)
+```
+
+#### 3.5 "(.)(.)(.).*\\3\\2\\1"
+(.)(.) 1st,2nd,3rd capturing group, would match any character except for for line terminators  <br>
+. would match any character except for for line terminators <br>
+* controls how many times a pattern matches between zero and unlimited times, as many times as possible <br>
+\\3 would refer to the same text as previously matched by the third capturing group <br>
+\\2 would refer to the same text as previously matched by the second capturing group <br>
+\\1 would refer to the same text as previously matched by the first capturing group <br>
+For example, 1234y4321 in 1234y4321rff. In other words, will return string with the min length of 6 if first three characters are the same as last three in reverse order, there can be any symbols between these two groups.
+```{r}
+stng_5 <- '1234y4321rff'
+str_view(stng_5, "(.)(.)(.).*\\3\\2\\1", match = TRUE)
+```
+
+### 4. Construct regular expressions to match words that: 
+#### 4.1 Start and end with the same character
+To only match a complete string, we should start with ^ and end with $.
+```{r}
+stng <- c('slow','momnm','slack','hopeh')
+str_view(stng, "^(.).*\\1$")
+```
+#### 4.2 Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)
+```{r}
+st <- c('slowwew','momnm','scklack','ohopehop','banana')
+str_view(st, ".*(.)(.).*\\1\\2.*")
+```
+#### 4.3 Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)
+```{r}
+s <- c('slowwew','momnm','scklack','ohopehop','banana')
+str_view(s, ".*(.).*\\1.*\\1.*")
+```
