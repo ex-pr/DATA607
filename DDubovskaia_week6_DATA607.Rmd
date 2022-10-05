@@ -1,0 +1,155 @@
+---
+title: "Assignment – Tidying and Transforming Data"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(RMySQL)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+
+### 1.Create a .CSV file (or optionally, a MySQL database!) that includes all of the information above. You’re encouraged to use a “wide” structure similar to how the information appears above, sothat you can practice tidying and transformations as described below.
+
+#### 1.1 Generate table using SQL
+The database to store the table with status, cities, etc is to be created using SQL.
+``````{mysql eval=FALSE}
+CREATE DATABASE delays;
+USE delays;
+
+CREATE TABLE `arrival` (
+  `airline` varchar(25) NOT NULL,
+  `status` varchar(45) NOT NULL,
+  `Los Angeles` int,
+  `Phoenix` int,
+  `San Diego` int,
+  `San Francisco` int,
+  `Seattle` int
+);
+
+INSERT INTO arrival
+VALUES 
+('ALASKA', 'on time', 497,221,212,503,1841),
+('', 'delayed',62,12,20,102,305),
+('','',NULL,NULL,NULL,NULL,NULL),
+('AMWEST', 'on time', 694,4840,383,320,201),
+('', 'delayed',117,415,65,129,61);
+```
+
+#### 1.2 Generate table using R
+We can also create table using Excel or right here, Using R. Once the table is redy, we will write the data in csv file.
+```{r}
+arrivals <- rbind(c("airline", "status", "Los Angeles", "Phoenix", "San Diego", "San Francisco", "Seattle"),
+             c("ALASKA", "on Time", 497, 221, 212, 503, 1841),
+             c(NA, "delayed", 62, 12, 20, 102, 305),
+             c(NA,NA,NA,NA,NA,NA,NA),
+             c("AM WEST", "on Time", 694, 4840, 383, 320, 201),
+             c(NA, "delayed", 117, 415, 65, 129, 61))
+
+write.table(arrivals, file = "arrivals.csv", sep = ",", col.names=F, row.names=F)
+```
+
+### 2. Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.
+#### 2.1 Load data from SQL database
+To load SQL database using R, RMySQL library is used.
+```{r}
+db = dbConnect(MySQL(), user='root', password = '336261', dbname='delays', host='localhost')
+```
+Once R is connected to the database, we can view and select necessary table from the database.
+```{r}
+arrivals <- dbGetQuery(db, 'SELECT * FROM arrival')
+```
+Let's see some information about the table and what's inside to check if data was imported correctly.
+```{r}
+summary(arrivals)
+head(arrivals,n=5)
+```
+
+#### 2.2 Load a csv file from Github
+The file will be downloaded from the Github repository to csv file using read.csv function. 
+```{r}
+arrivals <- read.csv("https://raw.githubusercontent.com/ex-pr/DATA607/week-6/arrivals.csv", header=TRUE, sep=",", check.names=FALSE)
+```
+By checking the data downloaded, we have 5 column with 7 rows.
+```{r}
+summary(arrivals)
+head(arrivals)
+```
+
+#### 2.3 Transform data
+Tidy data should follow the rules: each variable is its own column, each observation is its own row, and each value is its own cell. At the current moment, we have "wide data" an can transform it to "long data" as it is better to work with. <br>
+We are going to work with data from csv file. <br>
+First, remove NA row.
+```{r}
+arrivals <- filter(arrivals, rowSums(is.na(arrivals)) != ncol(arrivals))
+head(arrivals)
+```
+We will transform data to create 2 additional columns "Delayed", "On time". At the end, we will have a table with columns ""Airline", "City", "Delayed", "On time". <br>
+In airline column, we will spread name of airlines for NA values.
+```{r}
+arrivals <- fill(arrivals, airline)
+head(arrivals)
+```
+We will use gather function to transform columns with city names into rows and move rows with "On Time", "Delayed" to column "count". Then, we will use spread to split column "column" into 2 columns "On Time", "Delayed".
+
+```{r}
+arrivals_tidy <- arrivals %>%
+gather('Los Angeles', 'Phoenix', 'San Diego', 'San Francisco', 'Seattle', key = "cities", value = "count") %>%
+  spread(status,count)
+head(arrivals_tidy)
+```
+
+### 3. Aanalysis to compare the arrival delays for the two airlines.
+We can check which company has more delays, thus we should avoid buying connecting flights with this company.
+```{r}
+arrivals_tidy %>% 
+  group_by(airline) %>% 
+  summarise(all_delayed = sum(delayed), all_on_time=sum(`on Time`)) %>% 
+  mutate(percent_delay = round(all_delayed/(all_delayed+all_on_time)*100))
+```
+```{r}
+ggplot(arrivals_tidy, aes(x=airline, y=delayed, color=airline)) + 
+  geom_boxplot()
+```
+<br> We can also check which airport is famous for the most delays. 
+```{r}
+delay_percent <- arrivals_tidy %>% 
+  group_by(cities) %>% 
+  summarise(all_delayed = sum(delayed), all_on_time=sum(`on Time`)) %>% 
+  mutate(percent_delay = round(all_delayed/(all_delayed+all_on_time)*100))
+delay_percent
+```
+
+```{r}
+ggplot(delay_percent, aes(x = cities, y = percent_delay)) +
+  geom_bar(stat="identity",fill='blue') + 
+  labs(title="Delayed flights by city", x= "Cities", y = "Delayed flights, %") +
+  theme_light() +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+<br>Finally, we will check on delays for each airline in each airport. In case we are in San Francisco and we can choose better airline. 
+We will add another column to illustrate delay % for each city and company.
+```{r}
+arrivals_tidy <- arrivals_tidy %>%
+    group_by(airline, cities) %>%
+    mutate(total = sum(`on Time`, delayed), delayed_percent = round((delayed*100  / total),digits=0))
+arrivals_tidy <- arrivals_tidy %>% 
+  select(-total)
+head(arrivals_tidy)
+```
+
+```{r}
+ggplot(data=arrivals_tidy, aes(x=airline, y = delayed_percent, fill= airline))+
+    geom_bar(stat="identity")+
+    facet_wrap(~cities)+
+    labs(title="Delayed flights by city and airlines", x= "Airlines", y = "Delayed, %")+
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Conclusion.
+During the work, we have learned how to organize data in a way called "tidy data" using package tidyverse, how to transform wide format to long format. <br>
+By analyzing data, we see that in San Francisco 22% of flights are delayed. In San Francisco, AM West company has 29% of delays while Alaska has 17%.
+Based on the analysis of the airport/airline delays, we can conclude that people should avoid airports of San Francisco as most likely, the flight will be late. Also, if it happens that you are in San Francisco, avoid AM West airlines, it is better to choose another company, especially if you have a connecting flight. As well as in general, AM West company has more delays in each airport comparing to Alaska airline.
