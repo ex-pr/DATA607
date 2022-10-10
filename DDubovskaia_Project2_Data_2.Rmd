@@ -1,0 +1,116 @@
+---
+title: "Project 2, Dataset 2"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+### 1.Create a .CSV file (or optionally, a MySQL database!) that includes one of the “wide” datasets identified in the Week 6 Discussion items. You’re encouraged to use a “wide” structure similar to how the information appears above, sothat you can practice tidying and transformations as described below.
+I chose dataset that was posted by Jhalak Das and that includes the information about the students, their grades for tests for each term.
+```{r}
+students <- rbind(c("id", "name", "phone", "sex and age", "test number","term 1", "term 2", "term 3"),
+             c(1, "Mike", 134, "m_12", "test 1", 76, 84, 87),
+             c(2, "Linda", 270, "f_13", "test 1", 88, 90, 73),
+             c(3, "Sam", 210, "m_11", "test 1", 78, 74, 80),
+             c(4, "Esther", 617, "f_12", "test 1", 68, 75, 74),
+             c(5, "Marya", 114, "f_14", "test 1", 65, 67, 64),
+             c(1, "Mike", 134, "m_12", "test 2", 85, 80, 90),
+             c(2, "Linda", 270, "f_13", "test 2", 87, 82, 94),
+             c(3, "Sam", 210, "m_11", "test 2", 80, 87, 80),
+             c(4, "Esther", 617, "f_12", "test 2", 70, 75, 78),
+             c(5, "Marya", 114, "f_14", "test 2", 68, 70, 63))
+
+write.table(students, file = "students.csv", sep = ",", col.names=F, row.names=F)
+```
+### 2. Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.
+#### 2.1 Load a csv file from Github
+The file will be downloaded from the Github repository to csv file using read.csv function. 
+```{r}
+students <- read.csv('https://raw.githubusercontent.com/ex-pr/DATA607/Project-2/students.csv', header=TRUE, sep=",", check.names=FALSE)
+```
+By checking the data downloaded, we have 8 column with 10 rows.
+```{r}
+summary(students)
+head(students)
+```
+#### 2.2 Transform data
+Tidy data should follow the rules: each variable is its own column, each observation is its own row, and each value is its own cell. At the current moment, we have "wide data" an can transform it to "long data" as it is better to work with. <br>
+We are going to work with data from csv file and use tidyverse package to transform it. <br>
+First, the three columns with terms turn into one column called terms. Multiple variables should be stored in one column. pivot_longer() makes datasets longer by increasing the number of rows and decreasing the number of columns. 
+```{r}
+students <- students %>% 
+  pivot_longer(c("term 1", "term 2", "term 3"), names_to = "term", values_to = "grade")
+head(students)
+```
+Rename column "test number" to avoid spaces
+```{r}
+students <- plyr::rename(students, c("test number" = "test_number"))
+```
+Then, instead of taking “test number” as variable, we can consider two columns with headers ‘test 1’ and ‘test 2’. The test number column is not a variable, it contains two variables that we will make as columns.
+```{r}
+students <- students %>%
+    pivot_wider(names_from=test_number, values_from = grade)
+head(students)
+```
+In addition, “sex and age” should be two distinct columns; ‘sex’ and ‘age’.
+```{r}
+students <- students %>% 
+  separate("sex and age", into = c("sex", "age"))
+head(students)
+```
+Also, we can substitute "m" and "f" for sex with "male" and "female" accordingly, and transform age column into numeric from character.
+```{r}
+students["sex"][students["sex"] == "f"] <- "female"
+students["sex"][students["sex"] == "m"] <- "male"
+students$age = as.numeric(students$age)
+head(students)
+summary(students)
+```
+Finally, we will change values of column term from "term 1" to just "1" and make sure that we will get numeric values, not character.
+```{r}
+students["term"][students["term"] == "term 1"] <- "1"
+students["term"][students["term"] == "term 2"] <- "2"
+students["term"][students["term"] == "term 3"] <- "3"
+students$term = as.numeric(students$term)
+head(students)
+```
+### 3. Perform the analysis requested in the discussion item.
+Since there were no questions for analysis in the post, we can create our own. <br>
+We can find out which age performs best on the tests using mean grade for test 1. We see that at age of 14 there is only 1 student, Maya who performs not so good as other students.
+
+```{r}
+students %>%
+    group_by(age) %>%
+    summarise(test1Mean = mean(`test 1`),test2Mean =  mean(`test 2`)) %>%
+    ggplot(data = ., aes(x = age, y = test1Mean, 
+    fill = age)) + 
+  geom_bar(stat = "identity") +
+  theme_light() +
+  labs(title="Test grades, mean by age", x= "Age", y = "Mean test grades") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+<br>We can find out which sex performs better during the test. In general, there is no big difference between female and male mean test grades but male has a little gigher grade on average.
+```{r}
+students %>%
+    group_by(sex) %>%
+    summarise(test1Mean = mean(`test 1`),test2Mean =  mean(`test 2`)) 
+
+```
+
+```{r}
+ggplot(students, aes(x=sex, y=`test 1`, color=sex)) + 
+  geom_boxplot() +
+  theme_light() +
+  labs(title="Test grades, mean by sex", x= "Sex", y = "Mean test grades") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+### 4. Conclusion.
+During the work, we have reviewed how to organize data in a way called "tidy data" using package tidyverse, how to transform wide format to long format. <br>
+By analyzing data, we see that in general all sex and ages are almost at the same level of knowledge based on the test results. But still students of age 13 and male students perform a little better.

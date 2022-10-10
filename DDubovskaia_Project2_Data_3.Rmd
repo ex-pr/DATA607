@@ -1,0 +1,87 @@
+---
+title: "Project 2, Dataset 3"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+### 1.Create a .CSV file (or optionally, a MySQL database!) that includes one of the “wide” datasets identified in the Week 6 Discussion items. You’re encouraged to use a “wide” structure similar to how the information appears above, sothat you can practice tidying and transformations as described below.
+I chose dataset that was posted by Anthony Arroyo and that includes the information about the Cooperative Comparable Rental Income in Queens.
+```{r}
+rent <- rbind(c("COMPARABLE RENTAL – 1 – Boro-Block-Lot",	"COMPARABLE RENTAL – 1 – Neighborhood",	"COMPARABLE RENTAL – 1 – Total Units",	"COMPARABLE RENTAL – 1 – Year Built",	"COMPARABLE RENTAL – 1 – Gross SqFt",	"COMPARABLE RENTAL – 1 – Estimated Gross Income",	"COMPARABLE RENTAL – 2 – Boro-Block-Lot",	"COMPARABLE RENTAL – 2 – Neighborhood",	"COMPARABLE RENTAL – 2 – Total Units",	"COMPARABLE RENTAL – 2 – Year Built",	"COMPARABLE RENTAL – 2 – Gross SqFt",	"COMPARABLE RENTAL – 2 – Estimated Gross Income"),
+             c("4-08276-0658",	"DOUGLASTON",	54,	1977,	27690,	390932,	"4-03205-0024",	"FOREST HILLS",	20,	1931,	24408,	372944),
+             c("4-03173-0013",	"REGO PARK",	61,	1949,	70910,	1130670,	"4-02135-0013",	"FOREST HILLS",	135,	1960,	137700,	1889772),
+             c("4-02134-0013",	"FOREST HILLS",	123,	1963,	135400,	1872338,	"4-01279-0001",	"JACKSON HEIGHTS",	96,	1950,	95000,	1035405),
+             c("4-01268-0001",	"JACKSON HEIGHTS",	66,	1951,	57888,	860870,	"4-05046-0006",	"FLUSHING-NORTH",	45,	1968,	41398,	605749),
+             c("4-05046-0040",	"FLUSHING-NORTH",	63,	1959,	58399,	899224,	"4-03234-0051",	"FOREST HILLS",	228,	1929,	174480,	3520549),
+             c("4-03155-0027",	"REGO PARK",	286,	1959,	275197,	4668060,	"4-03322-0014",	"KEW GARDENS",	84,	1928,	83727,	1220740),
+             c("4-03329-0054",	"KEW GARDENS",	54,	1924,	54300,	814069,	"4-15555-0001",	"FAR ROCKAWAY",	108,	1950,	87926,	1077972),
+             c("4-08276-0658",	"DOUGLASTON",	54,	1977,	27690,	390932,	"4-01268-0001",	"JACKSON HEIGHTS",	66,	1951,	57888,	860870))
+
+write.table(rent, file = "rent.csv", sep = ",", col.names=F, row.names=F)
+```
+### 2. Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.
+#### 2.1 Load a csv file from Github
+The file will be downloaded from the Github repository to csv file using read.csv function. 
+```{r}
+rent <- read.csv('https://raw.githubusercontent.com/ex-pr/DATA607/Project-2/rent.csv', header=TRUE, sep=",", check.names=FALSE)
+```
+By checking the data downloaded, we have 12 column with 8 rows.
+```{r}
+head(rent, n=3)
+summary(rent)
+```
+
+#### 2.2 Transform data
+Tidy data should follow the rules: each variable is its own column, each observation is its own row, and each value is its own cell. At the current moment, we have "wide data" an can transform it to "long data" as it is better to work with. <br>
+We are going to work with data from csv file and use tidyverse package to transform it. <br>
+
+First of all, we will rename column to make it more readable.
+```{r}
+rent <- plyr::rename(rent, c("COMPARABLE RENTAL – 1 – Boro-Block-Lot" = "Boro_Block_Lot", "COMPARABLE RENTAL – 1 – Neighborhood" = "Neighborhood", "COMPARABLE RENTAL – 1 – Total Units" = "Total_Units", "COMPARABLE RENTAL – 1 – Year Built" = "Year_Built", "COMPARABLE RENTAL – 1 – Gross SqFt" = "Gross_SqFt",	"COMPARABLE RENTAL – 1 – Estimated Gross Income" = "Estimated_Gross_Income","COMPARABLE RENTAL – 2 – Boro-Block-Lot" = "Boro_Block_Lot",	"COMPARABLE RENTAL – 2 – Neighborhood" = "Neighborhood",	"COMPARABLE RENTAL – 2 – Total Units" = "Total_Units",	"COMPARABLE RENTAL – 2 – Year Built" = "Year_Built",	"COMPARABLE RENTAL – 2 – Gross SqFt" = "Gross_SqFt",	"COMPARABLE RENTAL – 2 – Estimated Gross Income" = "Estimated_Gross_Income"))
+```
+
+Secondly, the table can be split in two by the columns "Boro_Block_Lot", one table will be created (we will place one table under another) by using function bind_rows().
+
+```{r}
+table1 <- rent[ , 1:6] 
+table2 <- rent[ , 7:12] 
+rent <- bind_rows(table1 , table2)
+head(rent, n=3)
+```
+
+### 3. Perform the analysis requested in the discussion item.
+The question for the analysis was to determine the net value of each unit. <br>
+Unfortunately, there is not enough information to calculate net value, no expenses are provided. But we can check which lot has the oldest house. <br>
+The oldest house is built in 1924 in Kew Gardens.
+```{r}
+ggplot(rent,aes(x =Boro_Block_Lot,y = Year_Built)) + 
+    geom_point(size=3, color='red') + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5)) +
+    labs(title="Year built", x= "Lot", y = "Year") 
+```
+
+```{r}
+rent[rent$Year_Built == min(rent$Year_Built),]
+```
+
+The house that will bring the most gross income to the owners. <br>
+The the bar plot below, Rego Park is a huge lot and has estimated gross income 4668060, more than any other lot in the table.
+```{r}
+ggplot(rent, aes(x=`Boro_Block_Lot`, y=`Estimated_Gross_Income`)) + 
+  geom_bar(stat = "identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5)) +
+  labs(title="Income from each lot", x= "Lot", y = "Estimated income") 
+```
+
+```{r}
+rent[rent$`Estimated_Gross_Income` == max(rent$`Estimated_Gross_Income`),]
+```
+### 4. Conclusion.
+During the work, we have reviewed how to organize data in a way called "tidy data" using package tidyverse, how to transform wide format to long format. <br>
+By analyzing data, we found that the oldest house in Queens was  built in 1924! It is almost a hundred years old.<br>
+The "richest" block at the same time is the biggest, Rego Park, brings owner almost 5 millions dollars every year.

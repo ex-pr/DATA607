@@ -1,0 +1,162 @@
+---
+title: "Project 2, Dataset 1"
+author: "Daria Dubovskaia"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(data.table)
+```
+### 1.Create a .CSV file (or optionally, a MySQL database!) that includes one of the “wide” datasets identified in the Week 6 Discussion items. You’re encouraged to use a “wide” structure similar to how the information appears above, sothat you can practice tidying and transformations as described below.
+I chose dataset that was posted by Josh Iden  and that includes the selected characteristics of artists and the total labor force between 2015 and 2019.
+```{r}
+force <- rbind(c("", "Entire U.S. labor force",	"All artists",	"Architects",	"Fine artists, art directors, animators",	"Designers",	"Actors",	"Producers and directors",	"Dancers and choreographers",	"Musicians",	"Entertainers",	"Announcers",	"Writers and authors",	"Photographers"),
+             c("Number in the labor force",	"164 465 375",	"2 403 842",	"208 008",	"232 092",	"933 156",	"60 986",	"171 273",	"23 385",	"216 065",	"49 025",	"72 128",	"247 570",	"190 154"),
+             c("","","","","","","","","","","","","",""),
+             c("Percent non-white or Hispanic",	"37.9%",	"26.5%",	"25.1%",	"24.6%",	"27.6%",	"33.2%",	"25.2%",	"44.1%",	"28.9%", "31.7%",	"36.1%",	"17.3%",	"26.1%"),
+             c("","","","","","","","","","","","","",""),
+             c("Percent female",	"47.2%",	"47.6%",	"27.6%",	"46.1%",	"55.3%",	"45.4%",	"37.6%",	"77.4%",	"33.6%",	"45.7%",	"28.8%",	"59.8%",	"47.6%"),
+             c("","","","","","","","","","","","","",""),
+             c("Median age",	42,	40,	45,	42,	40,	36,	39,	27,	45,	33,	40,	44,	37),
+             c("","","","","","","","","","","","","",""),
+             c("Percent with a disability",	"6.2%",	"5.3%",	"3.2%",	"7.3%",	"4.6%",	"5.5%",	"3.3%",	"6.6%",	"7.4%",	"7.8%",	"7.6%",	"6.1%",	"5.2%"),
+             c("","","","","","","","","","","","","",""),
+             c("Percent self-employed",	"9.3%",	"33.6%",	"23.6%",	"53.8%",	"23.3%",	"37.8%",	"22.7%",	"23.1%",	"45.0%",	"45.9%",	"25.6%",	"41.8%",	"56.8%"),
+             c("","","","","","","","","","","","","",""),
+             c("Percent working full-year/full-time",	"66.0%",	"59.8%",	"82.3%",	"56.1%",	"68.3%",	"23.5%",	"72.3%",	"36.8%",	"32.6%",	"37.5%",	"52.6%",	"55.1%",	"46.5%"),
+             c("","","","","","","","","","","","","",""),
+             c("Percent with a bachelor's degree or higher level of training",	"37.3%",	"64.4%",	"90.7%",	"58.3%",	"59.9%",	"61.4%",	"74.9%",	"31.4%",	"57.0%",	"44.5%",	"46.0%","83.2%",	"51.2%"),
+             c("","","","","","","","","","","","","",""),
+             c("Median earnings of workers employed full-year/full time",	"$48 305",	"$58 005",	"$83 195",	"$50 505",	"$55 560",	"$41 060",	"$69 605",	"$36 365",	"$45 875",	"$41 260",	"$51 675",	"$60 115",	"$42 940"),
+             c("Men",	"$53 670",	"$64 405",	"$87 675",	"$54 025",	"$63 275",	"$43 220",	"$70 710",	"*",	"$46 620",	"$48 620",	"$52 730",	"$64 830",	"$47 455"),
+             c("Women",	"$42 940",	"$51 575",	"$70 710",	"$42 425",	"$50 505",	"$37 570",	"$64 405",	"*",	"$42 940",	"$31 640",	"$48 485",	"$56 950",	"$36 465"),
+             c("Women's-to-men's earnings ratio",	"$0.80",	"$0.80",	"$0.81",	"$0.79",	"$0.80",	"$0.87",	"$0.91",	"*",	"$0.92",	"$0.65",	"$0.92",	"$0.88",	"$0.77"),
+             c("","","","","","","","","","","","","",""),
+             c("White",	"$53 670",	"$59 040",	"$84 370",	"$50 505",	"$55 820",	"$45 455", "$71 715",	"*",	"$47 475",	"$42 940",	"$53 635",	"$60 610",	"$43 220"),
+             c("Non-white",	"$38 895",	"$55 560",	"$79 420",	"$50 130",	"$55 105",	"$35 355",	"$60 115",	"*",	"$40 075",	"$37 275",	"$47 445",	"$59 425",	"$40 225"),
+             c("Non-white-to-white earnings ratio",	"$0.72",	"$0.94",	"$0.94",	"$0.99",	"$0.99",	"$0.78",	"$0.84",	"*",	"$0.84",	"$0.87",	"$0.88",	"$0.98",	"$0.93"),
+             c("","","","","","","","","","","","","",""),
+             c("In sample",	"7 818 941",	"119 389",	"10 868",	"11 962",	"45 788",	"2 825",	"8 500",	"939",	"10 972",	"2 243",	"3 257",	"12 927",	"9 108")
+             )
+
+write.table(force, file = "force.csv", sep = ",", col.names=F, row.names=F)
+```
+
+### 2. Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.
+#### 2.1 Load a csv file from Github
+The file will be downloaded from the Github repository to csv file using read.csv function. 
+```{r}
+force <- read.csv('https://raw.githubusercontent.com/ex-pr/DATA607/Project-2/force.csv', header=TRUE, sep=",", check.names=FALSE)
+```
+By checking the data downloaded, we have 14 column with 26 rows.
+```{r}
+head(force,n=3)
+summary(force)
+dim(force)
+```
+
+
+#### 2.2 Transform data
+Tidy data should follow the rules: each variable is its own column, each observation is its own row, and each value is its own cell. At the current moment, we have "wide data" an can transform it to "long data" as it is better to work with. <br>
+We are going to work with data from csv file and use tidyverse package to transform it. <br>
+First of all, we will remove empty rows.
+```{r}
+force <- force[!apply(force == "", 1, all), ] 
+head(force, n=3)
+```
+On the second step, we will work remove % and $ sign. No % sign is needed as the word "percent" is already in the names of the rows.
+```{r}
+force[]<-lapply(force,gsub,pattern="$",fixed=TRUE,replacement="")
+force[]<-lapply(force,gsub,pattern="%",fixed=TRUE,replacement="")
+```
+As there are only numeric value but presented as characters, we will transform them to numeric. The first column contains spaces in numbers, the code below will remove them.
+```{r}
+force[,2:14]<-lapply(force[,2:14],gsub,pattern=" ",fixed=TRUE,replacement="")
+head(force, n=3)
+```
+
+```{r warning=FALSE, message=FALSE}
+force[, 2:14] <- apply(force[, 2:14], 2,       
+                    function(x) as.numeric(as.character(x)))
+str(force)
+```
+Column 1 will become row names.
+```{r}
+rownames(force) <- force[,1]
+```
+We will rename first column, make it as the names of rows and transpose dataframe to make columns as rows and rows as columns.
+```{r}
+names(force)[1] <- 'Info'
+force <- force %>% select(-Info)
+force_new <- transpose(force)
+
+
+rownames(force_new) <- colnames(force)
+colnames(force_new) <- rownames(force)
+
+head(force_new,n=3)
+```
+
+As the next step, "Men" and "Women" columns will become one column.
+```{r}
+force_new$force_type <- rownames(force_new)
+force_new <- force_new %>%           
+  dplyr::select("force_type", everything())
+
+rownames(force_new) <- 1:nrow(force_new)
+```
+
+```{r}
+force <- force_new %>% 
+  pivot_longer(c(`Men`, `Women`), names_to="Sex", values_to="Salary_sex")
+head(force, n=3)
+```
+
+### 3. Perform the analysis requested in the discussion item.
+Let's check artists' income by type and overall U.S. labor force. <br>
+From the plot below, architects earn more than other labor forces, dancers and choreographers less than everyone else.
+```{r warning=FALSE, message=FALSE}
+ggplot(force[5:26,], aes(force_type, `Median earnings of workers employed full-year/full time`)) + geom_col(fill='blue') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5)) +
+  labs(title="Median salary by type of force", x= "Type of Force", y = "Median salary")
+```
+<br>Next, we will check the salary for each type of force and sex. Dancers and choreographers are not included as there is no information about their salaries based on sex.<br>
+There is observation that in general, men earn more than women in each type of labor force.
+```{r}
+ggplot(force[-(15:16),],aes(x = force_type,y = Salary_sex)) + 
+    geom_bar(aes(fill = Sex),stat = "identity",position = "dodge") + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5)) +
+    labs(title="Median salary by sex", x= "Type of Force", y = "Median salary")
+```
+<br>Entertainers has the most inequality in term of salary for women, men are paid much more. Women earn only 65% of men salary.
+```{r}
+force[force[,11] == min(force[,11],na.rm = TRUE),]
+```
+<br>Just to check again, we will plot boxplot to confirm the previous observation, men earn more that women in general.
+```{r warning=FALSE, message=FALSE}
+ggplot(force, aes(x=Sex, y=Salary_sex, color=Sex)) + 
+  geom_boxplot() +
+  theme_light() +
+  labs(title="Salary based on sex", x= "Sex", y = "Salary") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+<br>It would be interesting to know which field has the most freelancers. Based on the results of scatter plot, photographers are self-employed in general. <br> 
+```{r}
+ggplot(force[5:26,],aes(x =force_type,y = `Percent self-employed`)) + 
+    geom_point(size=3, color='red') + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5)) +
+    labs(title="Percent self-employed based on force type", x= "Force type", y = "% self-employed") 
+```
+<br>
+
+### 4. Conclusion.
+During the work, we have reviewed how to organize data in a way called "tidy data" using package tidyverse, how to transform wide format to long format. <br>
+By analyzing data, we found that if you would like to join labor forces, it is lucrative to join team "Architects" as they earn more than $80k and it will difficult to earn in team "Dancers and choreographers" as they have salary below 40k. <br>
+If you would like to work for yourself, it is the best to join Photographers, the majority of them are freelancers and have a good salary.
+Unfortunately, there is inequality in salaries based on gender, men earn more than women in every field of labor forces. The most unequal force is entertainers, women earn there only 65% of men salary.
