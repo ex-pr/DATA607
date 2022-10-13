@@ -1,5 +1,5 @@
 {"library":[
-	{"Title":"Harry Potter and the Philosopher's Stone","authors":"J.K. Rowling","genre":"Fantasy","publication year":1997,"publisher":"Bloomsbury"},
-	{"Title":"Labyrinth of Reflections","authors":"Sergei Lukyanenko","genre":"Fantasy","publication year":1997,"publisher":"AST"},
-	{"Title":"Good Omens","authors":["Neil Gaiman,Terry Pratchett"],"genre":"Fantasy","publication year":1990,"publisher":"Gollancz"}
+	{"Title":"Harry Potter and the Philosopher's Stone","Authors":"J.K. Rowling","Genre":"Fantasy","Publication year":1997,"Publisher":"Bloomsbury"},
+	{"Title":"Labyrinth of Reflections","Authors":"Sergei Lukyanenko","Genre":"Fantasy","Publication year":1997,"Publisher":"AST"},
+	{"Title":"Good Omens","Authors":["Neil Gaiman,Terry Pratchett"],"Genre":"Fantasy","Publication year":1990,"Publisher":"Gollancz"}
 	]}
