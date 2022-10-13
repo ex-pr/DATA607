@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <LIBRARY>
 	<BOOK>
-		<TITLE>Harry Potter and the Philosopher's Stone</TITLE>
+		<Title>Harry Potter and the Philosopher's Stone</Title>
 		<AUTHORS>J.K. Rowling</AUTHORS>
 		<GENRE>Fantasy</GENRE>
 		<PUBLICATION_YEAR>1997</PUBLICATION_YEAR>
