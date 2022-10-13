@@ -11,14 +11,14 @@
 		<Title>Labyrinth of Reflections</Title>
 		<Authors>Sergei Lukyanenko</Authors>
 		<Genre>Fantasy</Genre>
-		<<Publication_year>1997</<Publication_year>
+		<Publication_year>1997</Publication_year>
 		<Publisher>AST</Publisher>
 	</BOOK>
 	<BOOK>
 		<Title>Good Omens</Title>
 		<Authors>Neil Gaiman,Terry Pratchett</Authors>
 		<Genre>Fantasy</Genre>
-		<<Publication_year>1990</<Publication_year>
+		<Publication_year>1990</Publication_year>
 		<Publisher>Gollancz</Publisher>
 	</BOOK>
 </LIBRARY>
