@@ -1,0 +1,60 @@
+---
+title: "Assignment – Web APIs"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+
+### The New York Times web site provides a rich set of APIs, as described here: https://developer.nytimes.com/apis You’ll need to start by signing up for an API key. Your task is to choose one of the New York Times APIs, construct an interface in R to read in the JSON data, and transform it into an R DataFrame.
+
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(jsonlite)
+library(httr)
+library(dplyr)
+```
+
+The API that I decide to use is called "Movie Reviews API" where you can search New York Times movie reviews by keyword and opening date and filter by Critics' Picks. \
+As a result of our request, we can get only 20 reviews per request.\
+I will look for reviews about the films that contain the word "Lord". \
+To access the NYT URL, we will need our api key and the URL with the request in it. Once we get the information from the URL, we can check if the request was successful by using status_code, if we get code 200, we got an array of movie critics.
+```{r}
+key_api <- "YFbXOzrWx1MdeAh7CzfjJU7iSMGcYE4m"
+url <- paste("https://api.nytimes.com/svc/movies/v2/reviews/search.json?query=lord&api-key=", key_api)
+reviews <- GET(url)
+reviews$status_code
+```
+We can check what we have inside of our responce.
+```{r}
+summary(reviews)
+```
+Since the response contains different types of data and we want to read this json file it has to be in the text format. \
+Once we read json file, we will transform it to data frame. To read json file we use function fromJSON() with the parameter flatten=TRUE to flatten nested data frames.
+```{r}
+reviews <- content(reviews, as = "text")
+```
+
+```{r}
+df_reviews <- fromJSON(reviews, flatten = TRUE)
+df_reviews <- data.frame(df_reviews$results, stringsAsFactors = FALSE)
+```
+We got a data frame with 20 reviews and 16 columns.
+```{r}
+colnames(df_reviews)
+```
+
+```{r}
+head(df_reviews)
+```
+We need to rename the columns, so it will be easier to work with the data frame during analysis.
+```{r}
+colnames(df_reviews) <- c("Title", "MPAA_rating", "Critics_pick", "Review_author", "Headline", "Summary_short", "Publication_date", "Movie_opening_date",          "Date_updated", "link_type", "url", "suggested_link_text", "multimedia_type",  "multimedia_src", "multimedia_height", "multimedia_width")
+```
+Some of the columns contain information we don't need. For example, "link_type", info about multimedia image.
+```{r}
+df_reviews <- df_reviews[, -c(10,13,14,15,16)]
+```
+
+```{r}
+head(df_reviews)
+```
