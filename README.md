@@ -4,5 +4,4 @@
 
 Russia investigation Data
 * [FiveThirtyEight dataset](https://projects.fivethirtyeight.com/russia-investigation/)
-* Vignette
 * [Vignette](https://github.com/ex-pr/DATA607/blob/tidyverse_create/DDubovskaia_TidyVerse_CREATE.Rmd)
