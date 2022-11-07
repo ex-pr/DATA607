@@ -1,0 +1,86 @@
+---
+title: "Discussion"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(foreign)
+library(car)
+library(ggplot2)
+library('gvlma')
+```
+
+
+### 1. Load data
+The data set "child_data" is stored on the local machine but can be found via Github <https://github.com/ex-pr/DATA607/blob/week-11/Child_Data.sav>
+The data frame consists of 4 columns (AGE, MEM_SPAN - memory testing score, IQ, READ_AB - reading skills score) and 20 rows. 
+```{r}
+df <- read.spss("C:/Users/daria/Downloads/Child_data.sav", use.value.labels = T, to.data.frame = T, use.missings = T)
+str(df)
+```
+
+### 2. Visualize the Data
+We will analyse the relation between the memory and reading skills.
+First, we should determine whether or not a linear relationship exists between the predictor and the output value.\
+It looks like linear relationship between the memory and reading skills, when reading is increased, the memory goes up too.
+```{r warning=FALSE, message=FALSE}
+ggplot(df, aes(READ_AB, MEM_SPAN)) + 
+  geom_point (color="blue", side=4) + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 90))+
+  labs(x = 'Reading score', y = "Memory score")
+```
+
+### 3. The Linear Model Function
+Next, we will build the linear model and check if reading/memory relationship is actually linear.\
+We see that the intercept is -1.8803 and the slope is 0.9767.
+```{r}
+model <- lm(df$READ_AB ~ df$MEM_SPAN) 
+model
+```
+Next, we plot the original data along with the fitted line.
+```{r warning=FALSE, message=FALSE}
+ggplot(df, aes(READ_AB, MEM_SPAN)) + 
+  geom_point (color="blue", side=4) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 90))+
+  labs(x = 'Reading score', y = "Memory score") + 
+  geom_smooth(method = "lm")
+```
+
+### 4. Evaluating the Quality of the Model
+Using summary() function for our linear model, we will get more information about it.\
+The Std. Error column shows the statistical standard error for each of the coefficients, it should be at least five to ten times smaller than the corresponding coefficient. For the memory the estimated value is 0.9767, the std. error is 0.1604 which is 6 times smaller, this ration is called t-statistic and we also see it in the summary table.\
+Pr(>|t|) shows the probability of observing a test statistic (t value) as extreme or more extreme as the one observed, assuming there is no linear relationship between the predictor and response variables. This value is tiny, just 9.37e-06. It means that there is strong evidence of a linear relationship between the reading and memory.\
+The Multiple R-squared value is 0.6733. It is a statistical measure of how well the model describes the measured data, we are at 67%.
+```{r}
+summary(model)
+```
+
+### 5. Residual analysis
+The last check for our model is residual analysis. The residuals are the differences between the actual measured values and the corresponding values on the fitted regression line. \
+For a model to be a good fit with the data, the residuals should be normally distributed around a mean of zero, uniformly scattered above and below zero, the median value near zero, Min/Max and 1Q/3Q are around the same magnitude. In the summary() results we see that our model satisfies the requirements for median (-0.01045) Min/Max (-0.68955/1.02209) and 1Q/3Q (-0.22791/0.21278). \
+To check other requirements, we will build the residuals plot. The residuals looks like normally distributed around the zero, uniformly scattered above and below zero though there is different variance of the outliers at the beginning and the end of the plot. \
+We should continue checking the residuals.
+
+```{r}
+plot(fitted(model),resid(model), xlab = "Fitted", ylab = "Residuals",
+     main = "Residuals plot")
+abline(0,0)
+```
+
+Another test is to use the quantile-versus-quantile plot, Q-Q. The Q-Q plot shows whether the residuals are normally distributed. We see that the right end diverge from the line. But most of the residuals are on the line and follow normal distribution. 
+```{r}
+qqnorm(resid(model))
+qqline(resid(model))
+```
+
+The overall results of the analysis.
+```{r}
+par(mfrow=c(2,2))
+plot(model)
+```
+
+### 6. Conclusion
+As a result of our analysis, the linear model shows good results. The t and p values shows that model fits and that there is a strong correlation between the explanatory (memory) and response variable (reading skills). The residuals normally distributed around the zero and seems to follow q-q plot. Still the model explains only 67% of the actual data, and residual q-q plot shows some divergence. As a result, we should discover factors that cause that and try to find a model that would be a better fit.
