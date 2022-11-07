@@ -1,0 +1,180 @@
+---
+title: "HW 12"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### 1. Assignment
+1. Provide a scatterplot of LifeExp~TotExp, and run simple linear regression. Do not transform the variables. Provide and interpret the F statistics, R^2, standard error,and p-values only. Discuss whether the assumptions of simple linear regression met. \
+2. Raise life expectancy to the 4.6 power (i.e., LifeExp^4.6). Raise total expenditures to the 0.06 power (nearly a log transform, TotExp^.06). Plot LifeExp^4.6 as a function of TotExp^.06, and r re-run the simple regression model using the transformed variables. Provide and interpret the F statistics, R^2, standard error, and p-values. Which model is "better?" \
+3. Using the results from 3, forecast life expectancy when TotExp^.06 =1.5. Then forecast life expectancy when TotExp^.06=2.5. \
+4. Build the following multiple regression model and interpret the F Statistics, R^2, standard error, and p-values. How good is the model? \
+LifeExp = b0+b1 x PropMd + b2 x TotExp +b3 x PropMD x TotExp \
+5. Forecast LifeExp when PropMD=.03 and TotExp = 14. Does this forecast seem realistic? Why or why not?
+
+### 2. Load data
+The attached who.csv dataset contains real-world data from 2008. The variables included follow: \
+Country: name of the country \
+LifeExp: average life expectancy for the country in years \
+InfantSurvival: proportion of those surviving to one year or more \
+Under5Survival: proportion of those surviving to five years or more \
+TBFree: proportion of the population without TB. \
+PropMD: proportion of the population who are MDs \
+PropRN: proportion of the population who are RNs \
+PersExp: mean personal expenditures on healthcare in US dollars at average exchange rate \
+GovtExp: mean government expenditures per capita on healthcare, US dollars at average exchange rate \
+TotExp: sum of personal and government expenditures \
+The file will be downloaded from the Github repository to csv file using read.csv function. 
+```{r}
+who <- read.csv('https://raw.githubusercontent.com/ex-pr/Dataset/main/who.csv', header=TRUE, sep=",", check.names=FALSE)
+summary(who)
+glimpse(who)
+```
+
+### 3. Life expectancy vs. Total expenditures
+#### 3.1 Scatter plot
+
+```{r}
+ggplot(who, aes(x=TotExp, y=LifeExp)) + 
+  geom_point (color="blue") + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x = 'Total expenditures', y = "Life expectancy", title = "Life expectancy vs. Total expenditures")
+```
+
+### 3.2 Linear regression
+Using lm() function, we will build the linear regression model for Life expectancy ~ Total expenditures.\
+Summary() function will show all the details about the model. \
+F statistics, 65.26, compares the current model to a model that has only the intercept parameter, it gives the same information as that on the line for the slope estimate. It suggests we can reject a regression model with a zero coefficient.\
+R^2 is 0.2577, it is a measure of how well the model describes the measured data, the value is pretty small. Our model describes only 25% of the data, so model doesn't really fit the data. \
+The Standard error column shows the statistical standard error for each of the coefficients, it should be at least five to ten times smaller than the corresponding coefficient for a good model. The estimated value is 6.297e-05, the std. error is 7.795e-06 which is 8 times smaller 6.297e-05/7.795e-06=8.079 which is almost 10 times smaller which is the sign for a good model. \
+p-value is 7.714e-14 which is a tiny value which can help us to assume that there is strong evidence of a linear relationship between Life expectancy and Total expenditures.\
+The low R^2 doesn't let us to assume that linear model fits our observation, we need additional residual analysis to make a final conclusion.
+```{r}
+model <- lm(who$LifeExp ~ who$TotExp)
+summary(model)
+```
+The residual analysis doesn't look right. The q-q plot and residual plot shows that residuals are not normally distributed, linear modeal doesn't fit the data.
+
+```{r}
+par(mfrow=c(2,2))
+plot(model)
+```
+
+### 4. Linear regression with transformed variables
+We will raise life expectancy to the 4.6 power, total expenditures to the 0.06  power and plot the results. \
+We see that now it looks more like linear relationship.
+
+```{r warning=FALSE, message=FALSE}
+LifeExp_4.6 <- who$LifeExp^4.6
+TotExp_0.06 <- who$TotExp^0.06
+
+
+ggplot(who, aes(x=TotExp_0.06, y=LifeExp_4.6 )) + 
+  geom_point (color="blue") + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x = 'Total expenditures^4.6', y = "Life expectancy^0.06", title = "Life expectancy vs. Total expenditures transformed") +
+  geom_smooth(method = "lm")
+
+```
+
+Let's re-run the linear model for transformed values.\
+F statistics, 507.7 is much better comparing to the previous model (65.26).
+R^2 is 0.7298, it is a measure of how well the model describes the measured data, the value is pretty small. Our model describes only 72.98% of the data, the model highly fits the data. \
+The estimated value is 620060216, the std. error is 27518940 which is 22 times smaller 620060216/27518940=22.53, it is too much which is not the sign for a good model. The previous model had 8 times difference which is much better.\
+p-value is < 2.2e-16 which is a tiny value which can help us to assume that there is strong evidence of a linear relationship between Life expectancy and Total expenditures.The same we had for the previous model.\
+This model has a much better value for R^2 but the standard error is too high, this model looks better than the previous one, the scatter plot shows linear relationship between transformed values (we didn't have it for the previous model) but I would analyze residuals to make the final conclusion.
+
+```{r}
+model_transformed <- lm(LifeExp_4.6 ~ TotExp_0.06)
+summary(model_transformed)
+```
+
+The residual analysis looks much better for this transformed model. The residuals normally distributed and reside  around the zero, uniformly scattered above and below zero though there is some variance on the left of the q-q plot. This model fits the data much better.
+
+```{r}
+par(mfrow=c(2,2))
+plot(model_transformed)
+```
+
+### 5. Forecast life expectancy
+Let's forecast life expectancy  when TotExp^.06 =1.5 and when TotExp^.06=2.5. \
+We will use model summary (intercept and estimate) to build an equation of our model.\
+The life expectancy values are 63.311 for TotExp^.06 =1.5 and 86.506 for TotExp^.06=2.5.
+```{r}
+TotExp_values = c(1.5, 2.5)
+model_summary <- summary(model_transformed)
+intercept <-model_summary$coefficients[1,1]
+estimate <- model_summary$coefficients[2,1]
+
+for (i in seq_along(TotExp_values)) {
+ print((intercept +  estimate * TotExp_values[[i]])^(1/4.6))
+}
+
+```
+
+### 6. Multiple regression model
+The equation for the multiple regression model: LifeExp = b0+b1 x PropMd + b2 x TotExp +b3 x PropMD x TotExp. \
+F statistics, 34.49, which is good for a 3  regression degrees of freedom and 120 residual degrees of freedom.\
+R^2 is 0.3574. Our model describes only 35.74% of the data, so model doesn't really fit the data. \
+The Standard error is 8 times smaller than the estimated value for TotExp  and 5 times for PropMD, which is a good sign. \
+p-value is < 2.2e-16 which is a tiny value which can help us to assume that there is strong evidence of a linear relationship between Life expectancy and Total expenditures.\
+The low R^2 doesn't let us to assume that linear model fits our observation, we need additional residual analysis to make a final conclusion.
+```{r}
+multiple_model <- lm(LifeExp ~ PropMD + TotExp + PropMD*TotExp, data=who)
+summary(multiple_model)
+```
+The residuals are not normally distributed, there is a certain pattern on the residual plot. The model doesn't fit the data.
+```{r}
+par(mfrow=c(2,2))
+plot(multiple_model)
+```
+
+Let's try to use LifeExp_4.6 and TotExp_0.06. \
+F statistics, 180.3, which is much better.\
+R^2 is 0.7441. Our model describes only 74.41 of the data, the model fits the data in a much better way. \
+The Standard error is not 5 to 10 times smaller that the estimate value, which is not the sign for a good model. \
+p-value is < 2.2e-16 which is a tiny value which can help us to assume that there is strong evidence of a linear relationship between Life expectancy and Total expenditures.\
+This model fits thr data much better but we need additional residual analysis to make a final conclusion.
+```{r}
+multiple_model_transformed <- lm(LifeExp_4.6 ~ PropMD + TotExp_0.06 + PropMD*TotExp_0.06, data=who)
+summary(multiple_model_transformed)
+```
+The residual analysis looks much better for this transformed model. The residuals normally distributed and reside  around the zero, uniformly scattered above and below zero though there is some variance on the left of the q-q plot. This model fits the data much better.
+```{r}
+par(mfrow=c(2,2))
+plot(multiple_model_transformed)
+```
+
+### 7. Forecast life expectancy
+The life expectancy is 107.696 years for PropMD=.03 and TotExp = 14. It doesn't look realistic, 107 years, when there is only 3% of population are doctors and with $14 for a total expenditures.
+
+```{r}
+PropMD_value = 0.03
+TotExp_value = 14
+multiple_summary <- summary(multiple_model)
+b0 <-multiple_summary$coefficients[1,1]
+b1 <- multiple_summary$coefficients[2,1]
+b2 <- multiple_summary$coefficients[3,1]
+b3 <- multiple_summary$coefficients[4,1]
+
+b0+ b1*PropMD_value  + b2*TotExp_value + b3*PropMD_value*TotExp_value
+```
+We can look at the plot below to see that if total expenditures are below $200, the life expectancy is below 65 years. Also, the highest life expectancy in the data frame is 83 years.
+```{r rwarning=FALSE, message=FALSE}
+max(who$LifeExp)
+ggplot(who, aes(x=TotExp, y=LifeExp)) + 
+  geom_point (color="blue") + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x = 'Total expenditures', y = "Life expectancy", title = "Life expectancy vs. Total expenditures") +
+  xlim(0, 200)
+```
