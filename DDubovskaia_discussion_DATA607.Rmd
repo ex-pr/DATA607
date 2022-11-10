@@ -1,0 +1,64 @@
+---
+title: "Discussion/Assignment 12: Recommender Systems"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+
+### 1. Assignment overview
+Your task is to analyze an existing recommender system that you find interesting.  You should: \
+1) Perform a Scenario Design analysis as described below.  Consider whether it makes sense for your selected recommender system to perform scenario design twice, once for the organization (e.g. Amazon.com) and once for the organization's customers. \
+2) Attempt to reverse engineer what you can about the site, from the site interface and any available information that you can find on the Internet or elsewhere. \
+3) Include specific recommendations about how to improve the site's recommendation capabilities going forward. \
+4) Create your report using an R Markdown file, and create a discussion thread with a link to the GitHub repo where your Markdown file notebook resides.  You are not expected to need to write code for this discussion assignment.
+
+### 2. Introduction
+Every Monday my life starts with one event, not work or study. I am talking about weekly updated of the wonderful playlist "Discover weekly" on **Spotify**, wonderful mostly for me personally. This playlist is remarkable for the songs you have never heard of but you are already in love with them. And every day I get six personal "Daily Mix" playlists each of them is "style-based", one is for the rock music, one if for the classic, etc. There are also a lot of podcast, custom made playlists from other users, etc.\
+I decided to use the Spotify recommender system as I use it everyday and understand its pros and cons. The recommender system predicts what you may like based on the taste of similar listeners, and the longer you listen, the better recommendation you get. 
+
+### 3. Scenario Design analysis
+Scenario Design helps to evaluate a user experience perspective of an interactive system. There are three questions in the Scenario Design Analysis to make sure that the users needs are addressed. In  my opinion, Scenario design should be performed twice, once for the users and once for the company itself:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ex-pr/DATA607/week-12/scenario%20design.png">
+</p>
+
+#### 3.1 Who are the target users?
+The target users are primarily young adults, Millennials and Gen Z, there are over age groups as well. People who feel comfortable with the technology, so they can access the app via phones, laptops, etc. Mostly just music fans who just like music or who wants to discover music new to them. \
+For Spotify, target users are the product to advertisers and a source of enrichment through subscriptions.
+
+#### 3.2 What are their key goals?
+The key goal of the target users is to find a lot of different music of their taste and discover new music they will like (this is where we have "Discover weekly"). They should be able to listen to a different music anywhere (work, gym, subway etc) or have a music that would match their current mood, so it should include the download, convenient app environment, access to different types of audio (relax music, books, podcast, etc). \
+Spotify's key goal is to attract and keep as many users as possible as they are paid subscribers. Spotify wants people to spend in the app as much time as possible to keep the algorithm working.
+
+#### 3.3 How can you (Spotify) help them accomplish those goals?
+To help users to accomplish their goals, there are several playlists created especially for every user based on the particular taste. The songs are combined in playlists because it is convenient and easy to access.If a user likes different styles (rock, classic, etc), he/she will have separate playlists for each style. As a result a user can choose the playlist based on his/her current mood, activity, etc. Each week, Discover Weekly playlist suggests 30 songs the user has never heard before. These songs are algorithmically defined as similar to songs the user has listened to previously allows the user to discover new songs without much effort or time exerted. Also, ability to access the music without any internet is a lot of help to the users, for example, on the airplane or in the subway. \
+Spotify keep the current customers interested in their product by these special playlists. The recommended playlist (based on the listeners preference) will help to modify and improve recommender system. The best algorithm will keep the customers longer and will attract new ones. Spotify also created "Radio" playlists based on the music group, so if a user likes particular group, Spotify will create a playlist with some of this group's songs and add other groups that are similar. As well, Spotify created cheep and family based subscriptions that most of the users can allow. Spotify provided a lot fo options to listen to a different music. As a result, customers want to come back to the app several times a day and keep the subscription.
+
+### 4. Reverse Engineer
+We will consider  reverse engineer using "Discover weekly" playlist. Valerio Velardo in the article  ["Spotify’s Discover Weekly explained — Breaking from your music bubble or, maybe not?"](https://medium.com/the-sound-of-ai/spotifys-discover-weekly-explained-breaking-from-your-music-bubble-or-maybe-not-b506da144123) helped me to understand the algorithm behind this playlist.\
+There are three main things that create Spotify's recommender system: \
+- **Natural Language Processing** to analyze the text from different resources that are related to music (description of songs, artists, news, etc). This model is used to understand what different people say about the particular song or artist as well as to understand what other songs and artists appear together in the same post or news. The info collected in cultural vectors which are weighted correlating to the relative importance of the word or phrase\
+- **Collaborative filtering models** to analyse your listening behavior and behavior of other users to predict users’ preferences. The key is that users with similar music taste will most of all like similar songs. If there is a user with similar music taste and he/she has a song I have never heard of, most likely, I will like this song as well. All this info is stored in the huge matrix where rows are users, columns are songs. Badly, this model rarely includes unpopular songs of artists who doesn't have huge audience yet.\
+- **Audio models** to analyze audio. This model helps to include the fresh songs. So there is no discrimination against new artists. The convolutional neural networks processes audio frames through convolutional layers to create a global temporal pooling layer that establish statistics of the learned features across the entire song. The neural network passes the audio through the dense layers to estimate the time signature, key, mode, tempo and loudness of a song. As a result, Spotify understands fundamental similarity between the songs in the database and will recommend a user new songs that have similar "audio" picture. \
+The Figure below describes the whole process of recommending the song to the cutomer.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ex-pr/DATA607/week-12/0%20LCFneD0fbUjHeJgX.png">
+</p>
+
+### 5. Recommendations
+The model Spotify is currently using (the three model system described above) is pretty effective and accurate. Although there are ways to improve it. \
+Spotify could use the idea of ["Yandex Music"](https://digitnews.in/yandex-music-now-has-my-wave-%E2%80%8B%E2%80%8Ba-personal-personal-music-stream/) app that has a personal playlist called "My wave". It is almost like a radio, endless songs, one after another, that are chosen based on the listener's taste. As a result, customer doesn't need to go through several playlists to turn on new music, everything is available in one playlist if, for example, a person doesn't know what type of music he/she wants to listen to or if a user needs to listen the music for a long time and wants to have it all different. \
+In addition to endless playlist, there can be playlists with endless amount of songs that user can choose from based on the current mood, activity, etc. \
+The recommender system could weigh recent likes and listens more heavily than those from over a year ago. Otherwise, a user mostly listens to the same music through the years.\
+In addition to the "Discover Weekly" playlist with 30 songs, Spotify can add couple of weekly playlists that are separated based on genre and mood. \
+
+### 6. Conclusion
+Overall, Spotify created a great recommendation system that uses different models to find the songs a user may like. The Spotify algorithm will help every user all around the world to have the best music. Their recommender system is interesting to discover and analyze, especially how they use NLP to analyze text from the internet to recommend songs. The suggestions above would definitely increase the number of users and keep current customers engaged.
+
+
+### 7. Resources
+ 1. ["Spotify’s Discover Weekly explained — Breaking from your music bubble or, maybe not?"](https://medium.com/the-sound-of-ai/spotifys-discover-weekly-explained-breaking-from-your-music-bubble-or-maybe-not-b506da144123)
+ 2. ["Yandex Music"](https://digitnews.in/yandex-music-now-has-my-wave-%E2%80%8B%E2%80%8Ba-personal-personal-music-stream/)
+ 3. ["Case Study: Three potential Spotify mobile UI improvements"](https://bootcamp.uxdesign.cc/spotify-ux-case-study-d5fdd6af853e)
