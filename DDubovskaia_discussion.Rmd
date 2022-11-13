@@ -1,0 +1,95 @@
+---
+title: "Discussion Multiple regression"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(foreign)
+library(car)
+library(ggplot2)
+library('gvlma')
+library(visreg)
+```
+
+
+### 1. Load data
+The data set "child_data" is stored on the local machine but can be found via Github <https://github.com/ex-pr/DATA607/blob/week-11/Child_Data.sav> \
+The data contains info about pupils. The data frame consists of 4 columns (AGE, MEM_SPAN - memory testing score, IQ, READ_AB - reading skills score) and 20 rows. 
+```{r}
+df <- read.spss("C:/Users/daria/Downloads/Child_data.sav", use.value.labels = T, to.data.frame = T, use.missings = T)
+str(df)
+```
+
+### 2. Visualize the Data
+We will analyse the relation between the memory and reading skills.
+First, we should determine whether or not a linear relationship exists between the predictor and the output value.\
+It looks like linear relationship between the memory and reading skills, when reading is increased, the memory goes up too.
+```{r warning=FALSE, message=FALSE}
+ggplot(df, aes(READ_AB, MEM_SPAN)) + 
+  geom_point (color="blue", side=4) + 
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 90))+
+  labs(x = 'Reading score', y = "Memory score")
+```
+
+### 3. The Model Function
+Reading skills depends not only from memory but maybe from age too. We will add another predictor - students' age. Maybe, older kids can read better.
+```{r}
+model <- lm(READ_AB ~ MEM_SPAN + AGE, data=df)
+summary(model)
+```
+p-value is 8.414e-07, which is a tiny value which can help us to assume that there is strong evidence of a linear relationship between reading and memory/age, the model describes 81% of our data. (Multiple R-squared: 0.8071). \
+For MEM_SPAN, p-value is less than 0.05, so we have to reject the null-hypothesis about 0 coefficient for MEM_SPAN. \
+For AGE, p-value is less than 0.05, so we have to reject the null-hypothesis about 0 coefficient for AGE. \
+The Standard error is 3 times smaller than the estimated value for MEM_SPAN  and 3 times for AGE, which is fine for now. \
+Regression equation:\
+READ_AB = 1.89714 + 0.52096 * MEM_SPAN + 0.33936 * AGE\
+If we increase MEM_SPAN by one, the reading skills should increase by 0.52096 if AGE is constant.\
+If we increase AGE by one, the reading skills should increase by 0.33936 if MEM_SPAN is constant.\
+
+But memory is also changing with age. As a result, memory/age intercation can affect reading skills. Let's check it by adding another predictor.
+
+```{r}
+model2 <- lm(READ_AB ~ MEM_SPAN + AGE + MEM_SPAN:AGE, data=df)
+summary(model2)
+```
+
+p-value is 0.01935, which is good. MEM_SPAN:AGE estimate value is -0.4382. The connection between independent and dependent variables is affected by another independent variable. \
+The three predictors explain 86% of the data (Multiple R-squared: 0.8644). \
+Regression equation:\
+READ_AB = -10.6151 + 3.4686 * MEM_SPAN + 2.2162 * AGE + (-0.4382 * MEM_SPAN:AGE)\
+
+
+Визуализируем взаимодействие с помощью функции visreg() из пакета visreg.
+
+```{r}
+visreg(model2, "MEM_SPAN", by = "AGE", overlay=TRUE, band=TRUE)
+```
+
+### 4. Residual analysis
+The last check for our model is residual analysis. The residuals are the differences between the actual measured values and the corresponding values on the fitted regression line. \
+For a model to be a good fit with the data, the residuals should be normally distributed around a mean of zero, uniformly scattered above and below zero, the median value near zero, Min/Max and 1Q/3Q are around the same magnitude. In the summary() results we see that our model satisfies the requirements for median (0.00693) Min/Max (-0.48254/0.62320) and 1Q/3Q (-0.15311/0.14414). \
+To check other requirements, we will build the residuals plot. The residuals are not normally distributed around the zero, and not uniformly scattered above and below zero though there is different variance of the outliers at the beginning and the end of the plot. \
+We should continue checking the residuals.
+
+```{r}
+plot(fitted(model2),resid(model2), xlab = "Fitted", ylab = "Residuals",
+     main = "Residuals plot")
+abline(0,0)
+```
+
+Another test is to use the quantile-versus-quantile plot, Q-Q. The Q-Q plot shows whether the residuals are normally distributed. We see that the right end diverge from the line.
+```{r}
+qqnorm(resid(model2))
+qqline(resid(model2))
+```
+
+The overall results of the analysis.
+```{r}
+par(mfrow=c(2,2))
+plot(model2)
+```
+
+### 6. Conclusion
+As a result of our analysis, the multiple regression model didn't show good results. The t and p values shows that model fits and that there is a strong correlation between the explanatory (memory, age) and response variable (reading skills). But residual analysis didn't show the normal distribution of residuals. We could continue adding factors to try to better fit the model. For example, we could add IQ to the model and see how it correlates and affect other predictors.
