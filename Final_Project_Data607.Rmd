@@ -1,0 +1,671 @@
+---
+title: "Final Project"
+author: "Daria Dubovskaia"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 6
+    theme: united
+---
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(xlsx)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(plotly)
+library(stringr)
+library(dplyr)
+library(maps)
+library(ggthemes)
+library(leaflet)
+library(tidyr)
+library(openxlsx)
+library(RMySQL)
+library(ggpubr)
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ex-pr/DATA607/final/time-crime-2022-stats-07-28-22.png">
+</p>
+
+### 1. Introduction
+[“With all the opportunities for a better life in the US comes the question of safety”](https://www.moovaz.com/blog/how-safe-is-the-us-2/). The crime level in the US has been always a hot topic, it affects all people in the country in one way or another. If people would like to relocate, they most likely will need to make sure that they are moving to a safe area or politicians would like to know why there was a rise in crime in a certain area and what can be done about it. As an immigrant, I am not closely familiar with the situation outside the NY state. In case I need to relocate, I would like to choose a place with a low crime level. Since the last few years, the situation around the world is changing drastically, I would like to check crime levels for the last few years at the place of choice and answer the questions:\
+1) What is the safe state to move from New York City? \
+2) What state is the crime leader? \
+3) What is the most common type of crime? \
+4) Analyze the most dangerous states by the type of crime. \
+
+In the final project, I will check crime levels around the US by type of crime for the last two years (2020, 2021). There are several resources for the data to be used. I will concentrate on the annual data provided by the FBI as they have the Crime data explorer where incident-based data by state, summary data estimates, and data about other specific topics are available. The FBI website also gives access to data through API or just CSV files to download.
+
+### 2. Load data
+There are several ways to access the data. \
+
+#### 2.1 GitHub
+Load data from GitHub repository using read.xlsx function from the openxlsx library. We will just need the raw url to access the file. The original files were loaded from the [FBI website](https://crime-data-explorer.app.cloud.gov/#).
+```{r}
+persons_2021 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Persons_Offenses_Offense_Category_by_State_2021.xlsx?raw=true", 1)
+
+property_2021 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Property_Offenses_Offense_Category_by_State_2021.xlsx?raw=true", 1)
+
+society_2021 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Society_Offenses_Offense_Category_by_State_2021.xlsx?raw=true", 1)
+
+persons_2020 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Persons_Offenses_Offense_Category_by_State_2020.xlsx?raw=true", 1)
+
+property_2020 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Property_Offenses_Offense_Category_by_State_2020.xlsx?raw=true", 1)
+
+society_2020 <- read.xlsx("https://github.com/ex-pr/DATA607/blob/final/Crimes_Against_Society_Offenses_Offense_Category_by_State_2020.xlsx?raw=true", 1)
+```
+The result is untidy data frame below. There are 57 observations for 2021 year and 53 observations for 2020. Some of the states are not included in the 2020 year: Alaska, California, New Jersey. Florida is not included in the 20221.\ 
+The columns describe the number of cases occurred for the particular type of crime as well as state name, population and total crime cases for the state. There are 8 columns for the crime against person and society, 14 columns for the crime against property.  \
+We will clean for further use during the explanatory analysis.
+```{r}
+knitr::kable(head(persons_2021[,1:9]), format = "html")
+knitr::kable(head(property_2020[,1:9]), format = "html")
+```
+
+#### 2.2 SQL
+Another way is to load the data from the SQL database. The code below shows the way to load the tidy data to the local database,it can be loaded to the cloud database as well.
+data_2020 and data_2021 are tidy data for each year that can be stored in the SQL database.
+```{r eval=FALSE}
+table_names <- c('dt2020', 'dt2021')
+df <- list(dt2020, dt2021)
+
+#connect to database
+db = dbConnect(MySQL(), user='root', password = '336261', dbname='delays', host='localhost')
+
+
+#load to database
+dbSendQuery(db, "SET GLOBAL local_infile = true;")
+lapply(seq_along(table_names), function(i) dbWriteTable(db, table_names[[i]], df[[i]], row.names=FALSE, append=TRUE))
+
+#load from the database
+tbl_2021 <- dbReadTable(db, 'dt2021', row.names = NULL)
+tbl_2020 <- dbReadTable(db, 'dt2020', row.names = NULL)
+
+#disconnect
+dbDisconnect(db)
+```
+#### 2.3 FBI API
+Or directly from the FBI's API. There are libraries that help to handle the FBI API. For example, fbicrime. There is a way to choose the type of crime, regions, states, agencies, etc. Unfortunately, it won't allow to collect the data for all states and all type of crimes fast, you have to list all the states, all the type of crimes manually.
+
+```{r include=FALSE, results='hide', eval=FALSE}
+set_fbi_crime_api_key('3ut2LaZiDnWqjH9dQC6x5jdBxJa5PKAf1wS1H2hU')
+```
+
+```{r eval=FALSE}
+library(fbicrime)
+count_offense(offense = c('robbery','burglary'), 
+              level = 'regions', 
+              level_detail = c('South','Northeast'),
+              api_key = getOption('fbicrime_api_key'))
+```
+
+### 3. Tidy data
+
+#### 3.1 Remove empty rows/columns, rename
+There are empty rows appeared from the excel document. We will remove them to make the data looks more like data frame.
+```{r}
+persons_2021 <- persons_2021 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 57))
+
+property_2021 <- property_2021 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 57))
+
+society_2021 <- society_2021 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 57))
+
+persons_2020 <- persons_2020 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 53))
+
+property_2020 <- property_2020 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 53))
+
+society_2020 <- society_2020 %>%
+  filter(!row_number() %in% c(1, 2, 3, 5, 53))
+```
+
+```{r}
+knitr::kable(head(persons_2021[,1:9]), format = "html")
+```
+
+In every data frame, we will get rid of the column that contains info about the Number of Participating Agencies by using function select() to select the exact column.
+```{r}
+persons_2021 <- persons_2021 %>%
+  select (-c(2))
+
+property_2021 <- property_2021 %>%
+  select (-c(2, 3))
+
+society_2021 <- society_2021 %>%
+  select (-c(2, 3))
+
+persons_2020 <- persons_2020 %>%
+  select (-c(2))
+
+property_2020 <- property_2020 %>%
+  select (-c(2, 3))
+
+society_2020 <- society_2020 %>%
+  select (-c(2, 3))
+```
+
+The first row contains names of the columns. We will make the first row as the column names. Function row_to_names() take the row number and transforms this row to column names.
+```{r}
+persons_2021 <- persons_2021 %>%
+  row_to_names(row_number = 1)
+
+property_2021 <- property_2021 %>%
+  row_to_names(row_number = 1)
+
+society_2021 <- society_2021 %>%
+  row_to_names(row_number = 1)
+
+persons_2020 <- persons_2020 %>%
+  row_to_names(row_number = 1)
+
+property_2020 <- property_2020 %>%
+  row_to_names(row_number = 1)
+
+society_2020 <- society_2020 %>%
+  row_to_names(row_number = 1)
+```
+
+The first column was left without name, it was supposed to be the column for the total crime cases. Function rename() of the tidyverse package take the new name and the old name of the column.
+```{r}
+persons_2021  <- persons_2021 %>%
+  rename('Total Person Crime' = 3)
+
+property_2021  <- property_2021 %>%
+  rename('Total Property Crime' = 2)
+
+society_2021 <- society_2021 %>%
+  rename('Total Society Crime' = 2)
+
+persons_2020  <- persons_2020 %>%
+  rename('Total Person Crime' = 3)
+
+property_2020  <- property_2020 %>%
+  rename('Total Property Crime' = 2)
+
+society_2020 <- society_2020 %>%
+  rename('Total Society Crime' = 2)
+```
+
+```{r}
+knitr::kable(head(society_2021[,1:8]), format = "html")
+```
+
+#### 3.2 Merge data
+
+##### 3.2.1 Data per year
+To make one data frame and use it for analysis, we will first combine data frames by year (2020, 2021).
+```{r}
+df_list_2021 <- list(persons_2021, property_2021, society_2021)
+data_2021 <- Reduce(function(x, y) merge(x, y, by = "State", all=TRUE), df_list_2021, accumulate=FALSE)
+
+df_list_2020 <- list(persons_2020, property_2020, society_2020)
+data_2020 <- Reduce(function(x, y) merge(x, y, by = "State", all=TRUE), df_list_2020, accumulate=FALSE)
+```
+
+The number of cases is presented as character in each of the data frames. We will transform it to numeric and check after if any character column was left (except for the state column) using select_if() function.
+```{r}
+data_2021  <- data_2021 %>%
+    mutate_at(c(2:28), as.numeric)
+
+data_2020 <- data_2020 %>%
+    mutate_at(c(2:28), as.numeric)
+
+
+head(select_if(data_2020, is.character))
+head(select_if(data_2021, is.character))
+```
+We have columns with the sum of cases for crime against person, society or property. Another column to be added is 'Total offenses' to contain info about the total number of the crime for the particular state as well as the year.
+```{r}
+data_2020 <- data_2020 %>% mutate(`Total offenses` = rowSums(select(., contains("Total"))))
+data_2021 <- data_2021 %>% mutate(`Total offenses` = rowSums(select(., contains("Total"))))
+
+data_2020$Year <- c('2020')
+data_2021$Year <- c('2021')
+```
+The 2020 and 2021 data frames contain different column names, we will fix it. Otherwise we won't be able to merge these data frames. \
+First we check what names are different by using setdiff() function. Functions renames() and mutate() will help us to rename columns and some values in the rows. For example, instead of "Florida 1", we should use just "Florida". Also, the names of the columns contain "\n" character instead of the space, we will replace it with just space.\
+The data frame for the 2021 year contains 51 states and 30 types of crime together with the state names and total statistics, 2020 year contains 47 states and 30 columns.
+```{r}
+#check what names are different
+setdiff(names(data_2020), names(data_2021))
+setdiff(names(data_2021), names(data_2020))
+
+#remove unwanted characters
+data_2021  <- data_2021 %>%
+  rename('Population Covered' = 'Population\nCovered ') %>%
+  rename('Destruction Damage Vandalism' = 'Destruction/\nDamage/\nVandalism ')
+
+data_2020 <- data_2020 %>%
+  rename('Population Covered' = 'Population\nCovered ') %>%
+  rename('Destruction Damage Vandalism' = 'Destruction/\nDamage/\nVandalism ')
+
+
+names(data_2021) <- gsub("\n", " ", names(data_2021))
+names(data_2020) <- gsub("\n", " ", names(data_2020))
+
+names(data_2021) <- gsub("/ ", " ", names(data_2021))
+names(data_2020) <- gsub("/ ", " ", names(data_2020))
+
+#rename columns/states that were different for two data frames
+data_2021 <- data_2021 %>% 
+    rename("Human Trafficking" = "Human Trafficking Offenses") %>%
+    mutate(across('State', str_replace, 'Florida1', 'Florida'))
+
+
+data_2020 <- data_2020 %>% 
+    mutate(across('State', str_replace, 'District of Columbia1', 'District of Columbia'))
+``` 
+
+```{r}
+knitr::kable(head(data_2021[,1:9]), format = "html")
+```
+
+##### 3.2.2 Combined data for 2020, 2021
+To use only one data frame instead of two, we will combine 2020 and 2021 years together using function merge().\
+The final data frame contains 98 observations (each state has 2 observations, for 2020 and 2021 year) of 30 variables.
+```{r}
+data_total <- merge(data_2020, data_2021, all=TRUE)
+```
+There can be an issue with using just total amount of crime cases. For example, if the population of a state is millions, there will definitely more crime cases than in the small states. It wan't show the real picture. We should use crime rate to analyze the density of the crime per state. We will use the rate per 100,000 inhabitants.
+```{r}
+data_total <- data_total %>% 
+  mutate(`Rate Person crime` = `Total Person Crime`/`Population Covered`* 100000, `Rate Person crime`=round(`Rate Person crime`, 4)) %>% 
+  mutate(`Rate Property crime` = `Total Property Crime`/`Population Covered`* 100000, `Rate Property crime`=round(`Rate Property crime`, 4)) %>% 
+  mutate(`Rate Society crime` = `Total Society Crime`/`Population Covered`* 100000, `Rate Society crime`=round(`Rate Society crime`, 4)) %>% 
+  mutate(`Rate Total crime` = `Total offenses`/`Population Covered`* 100000, `Rate Total crime`=round(`Rate Total crime`, 4))
+
+knitr::kable(head(data_total[,1:9]), format = "html")
+```
+
+
+### 4. Exploratory analysis
+
+#### 4.1 The most dangerous state
+Finally, we can start answering the research questions. We will start with analyzing the most dangerous state for the last 2 years to define the states where I wouldn't definitely won't relocate. \
+It looks like Texas and North Carolina, but the difference between crime cases is huge. I am going to rebuild the plot using the crime rate instead of total cases.
+```{r warning=FALSE, message=FALSE}
+crime_2020 <- data_total %>%
+  filter(Year=='2020') %>% 
+  arrange(desc(`Total offenses`))
+
+
+crime_2020[1:10,] %>%
+  plot_ly(x = ~`Total offenses`, y = ~State, type = "bar", color = ~`Total Person Crime`, colors = "YlOrRd", orientation='h') %>%
+  layout(title = "Top 10 Total Crime per State, 2020",
+         yaxis = list(categoryorder = "array", 
+         categoryarray = ~`Total offenses`, title="State"),
+         yaxis = list(title="State"),
+         bargap = 0.5)
+```
+
+With the crime rate, the situation has changed. New Mexico, Arkansas and Tennessee are in the top of the rating by the overall crime cases. In 2021, the situation wasn't so different comparing to 2020. Colorado moved up, it is now at the 4th place comparing to the 10th place in 2020. South Carolina improved the crime situation and moved down from4th place to 8th place. These changes may be related to covid as in 2021 people started travelling withing the country. Colorado one of the touristic places.
+```{r warning=FALSE, message=FALSE}
+crime_2020 <- data_total %>%
+  filter(Year=='2020') %>% 
+  arrange(desc(`Rate Total crime`))
+
+ crime_2020[1:10,] %>%
+  plot_ly(x = ~ `Rate Total crime`, y = ~State, type = "bar", color = ~`Rate Total crime`, colors = "YlOrRd", orientation = "h") %>%
+  layout(title = "Top 10 Total Crime per State, 2020",
+         yaxis = list(categoryorder = "array", 
+         categoryarray = ~`Rate Total crime`, title="State"),
+         yaxis = list(title="Rate"),
+         bargap = 0.5)
+
+crime_2021 <- data_total %>%
+  filter(Year=='2021') %>% 
+  arrange(desc(`Rate Total crime`))
+
+crime_2021[1:10,] %>%
+  plot_ly(x = ~ `Rate Total crime`, y = ~State, type = "bar", color = ~`Rate Total crime`, colors = "YlOrRd", orientation = "h") %>%
+  layout(title = "Top 10 Total Crime per State, 2021",
+         yaxis = list(categoryorder = "array", 
+         categoryarray = ~`Rate Total crime`, title="State"),
+         yaxis = list(title="Rate"),
+         bargap = 0.5)
+```
+
+The New Mexico appeared to be the most dangerous state. Theft, persons' assault, vandalism are the most common type of crime. Mostly the crime against property in 2021. It may be a good idea to avoid buying a house there. \ 
+Arkansas seems to have the same issues. Though crime related to drugs, sex offenses and weapon violations make me more afraid of Arkansas than of New Mexico.
+```{r warning=FALSE, message=FALSE}
+dang_state <- data_total[,!grepl("^Total",names(data_total))]
+
+
+a <- dang_state %>% 
+    filter(State=="New Mexico") %>%
+    filter(Year=='2021') %>%
+    select(3:25) %>%
+    gather("offenses", "cases", 1:23) %>%
+    mutate(across('offenses', str_replace_all, '\n', ' '))  %>%
+  
+ggplot(aes(x=offenses, y=cases, group=1)) + 
+    geom_line(color='red') +
+    geom_point(size=3, color='red') +  
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Crime in New Mexico, 2021", x= "Type", y = "# of cases") +
+    scale_y_continuous(trans='log10')
+
+
+dang_state <- data_total[,!grepl("^Total",names(data_total))]
+
+
+b <- dang_state %>% 
+    filter(State=="Arkansas") %>%
+    filter(Year=='2021') %>%
+    select(3:25) %>%
+    gather("offenses", "cases", 1:23) %>%
+    mutate(across('offenses', str_replace_all, '\n', ' '))  %>%
+  
+ggplot(aes(x=offenses, y=cases, group=1)) + 
+    geom_line(color='red') +
+    geom_point(size=3, color='red') +  
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Crime in Arkansas, 2021", x= "Type", y = "# of cases") +
+    scale_y_continuous(trans='log10')
+ 
+
+ggarrange(a, b,
+          ncol = 2, nrow = 1)
+```
+
+#### 4.2 Safe states
+To choose the state for relocation, we will plot the 15 safest states for 2020/2021.\
+The overall crime rate has increased since 2020. The situation with the safe states change totally. New Jersey seems good now. It could happen because a lot of families relocated from New York to New Jersey during 2020. New Jersey would be a good family location. \
+The crime in Vermont (now 2nd place) increased since 2020 though it is decreased in Maine/Massachusetts/Vermont.
+
+```{r}
+data_total %>%
+  group_by(Year) %>%
+  summarise(total_crime_person = sum(`Total Person Crime`), .groups = 'drop') %>% 
+  ggplot(aes(x=Year, y=total_crime_person)) + 
+    geom_col(fill='light blue') + 
+     theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white",
+                                colour = "black",
+                                size = 0.5, linetype = "solid"),) +
+    labs(title='Total crime agains person per year', x='Year', y='# of offenses') +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip()
+```
+
+
+```{r warning=FALSE, message=FALSE}
+crime_2020 <- data_total %>%
+  filter(Year=='2020') %>% 
+  arrange(`Rate Total crime`)
+
+a <- crime_2020[1:12,] %>%
+  plot_ly(x = ~ `Rate Total crime`, y = ~State, type = "bar", color = ~`Rate Total crime`, colors = "BrBG", orientation = "h") %>%
+  layout(title = "The safest 10 States, 2020/2021",
+         yaxis = list(categoryorder = "array", 
+         categoryarray = ~`Rate Total crime`, title="State"),
+         yaxis = list(title="State"),
+         bargap = 0.5)
+
+
+crime_2021 <- data_total %>%
+  filter(Year=='2021') %>% 
+  arrange(`Rate Total crime`)
+
+b <- crime_2021[1:12,] %>%
+  plot_ly(x = ~ `Rate Total crime`, y = ~State, type = "bar", color = ~`Rate Total crime`, colors = "BrBG", orientation = "h") %>%
+  layout(title = "The safest 10 States, 2020/2021",
+         yaxis = list(categoryorder = "array", 
+         categoryarray = ~`Rate Total crime`, title="State"),
+         yaxis = list(title="State"),
+         bargap = 0.5)
+
+subplot(a, b, nrows=2)
+```
+
+We should check the safe states (New Jersey and Massachusetts) from 2021 by the type of crime. \
+It seems that Massachusetts has more homicide crime, New Jersey seems more attractive after that.
+
+```{r warning=FALSE, message=FALSE}
+safe_state <- data_total[,!grepl("^Total",names(data_total))]
+
+
+a <- safe_state %>% 
+    filter(State=="New Jersey") %>%
+    filter(Year=='2021') %>%
+    select(3:25) %>%
+    gather("offenses", "cases", 1:23) %>%
+    mutate(across('offenses', str_replace_all, '\n', ' '))  %>%
+  
+ggplot(aes(x=offenses, y=cases, group=1)) + 
+    geom_line(color='red') +
+    geom_point(size=3, color='red') +  
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Crime in New Jersey, 2021", x= "Type", y = "# of cases") +
+    scale_y_continuous(trans='log10')
+
+b <- safe_state %>% 
+    filter(State=="Massachusetts") %>%
+    filter(Year=='2021') %>%
+    select(3:25) %>%
+    gather("offenses", "cases", 1:23) %>%
+    mutate(across('offenses', str_replace_all, '\n', ' '))  %>%
+  
+ggplot(aes(x=offenses, y=cases, group=1)) + 
+    geom_line(color='red') +
+    geom_point(size=3, color='red') +  
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Crime in Massachusetts, 2021", x= "Type", y = "# of cases") +
+    scale_y_continuous(trans='log10')
+
+
+
+ggarrange(a, b,
+          ncol = 2, nrow = 1)
+```
+
+#### 4.3 Overall crime map
+It would be helpful to have the US map to visualize the crime density. \
+There are different reasons for why a person would like to understand the crime rate in any particular state. For example, if I would like to just buy a property, I need to understand where the crime against property is low. Or if I would like to relocate with my family, I need to be sure that crime against person is low. \
+There are no District of Columbia as it is not on the standard R map. \
+
+##### 4.3.1 Total crime rate
+To start, we will look at the overall picture of crime in the US for 2021. We see again the most dangerous New mexico and safest New Jersey. \
+We are going to use the built in map with the states, join it with our data frame. Plotly library will help to build the interactive US map.
+```{r warning=FALSE, message=FALSE}
+df <- data_total %>%
+  filter(Year=='2021') %>% 
+  select('State', "Rate Total crime")
+
+
+df$State <- tolower(df$State)
+
+names(df) <- tolower(names(df)) 
+
+df <- df[!grepl("district of columbia", df$state),]
+
+# generate location information for all states (using built-in data)
+state.info <- inner_join(data.frame(state=tolower(state.name), 
+                                    long=state.center$x, lat=state.center$y, 
+                                    stringsAsFactors=FALSE),
+                         data.frame(state=tolower(datasets::state.name), 
+                                    abbrev=datasets::state.abb))
+
+# join the test data to the states location info
+map.df <- inner_join(state.info, df, by="state")
+
+
+
+# set up plotly to zoom in to US only
+g <- list(scope='usa', projection=list(type='albers usa'), 
+          showlakes=TRUE, lakecolor=toRGB('white'))
+
+# plot on the US map
+plot_ly(map.df, type='choropleth', locationmode='USA-states', 
+    locations=map.df$abbrev, z=map.df$`rate total crime`, text=map.df$state) %>% 
+    layout(geo=g, title='Frequency of crime by State, 2021')
+```
+
+
+##### 4.3.2 Crime rate against person
+These map looks a little different. For example, Colorado seems not so bad in terms of one's person safety, New Jersey, vermont and other East states seem safe comparung to West Coast. \
+But Arkansas seems to be the leader in the crime against person together with New Mexico and Nevada. \
+Nevada is not a surprise to be in the top 3 of state with the highest crime rates as famous Las Vegas is right there.
+```{r warning=FALSE, message=FALSE}
+df <- data_total %>%
+  filter(Year=='2021') %>% 
+  select('State', "Rate Person crime")
+
+
+df$State <- tolower(df$State)
+
+names(df) <- tolower(names(df)) 
+
+df <- df[!grepl("district of columbia", df$state),]
+
+
+state.info <- inner_join(data.frame(state=tolower(state.name), 
+                                    long=state.center$x, lat=state.center$y, 
+                                    stringsAsFactors=FALSE),
+                         data.frame(state=tolower(datasets::state.name), 
+                                    abbrev=datasets::state.abb))
+
+map.df <- inner_join(state.info, df, by="state")
+
+
+g <- list(scope='usa', projection=list(type='albers usa'), 
+          showlakes=TRUE, lakecolor=toRGB('white'))
+
+plot_ly(map.df, type='choropleth', locationmode='USA-states', 
+    locations=map.df$abbrev, z=map.df$`rate person crime`, text=map.df$state) %>% 
+    layout(geo=g, title='Frequency of crime against person by State, 2021')
+```
+
+We can also build the plot to see top 10 of the states in crime against person for 2020 to compare the picture. Illinois definitely improved the situation since 2020.
+```{r warning=FALSE, message=FALSE}
+person_crime_2020 <- data_total %>%
+  filter(Year=='2020') %>% 
+  arrange(desc(`Rate Person crime`))
+
+
+person_crime_2020[1:10,] %>%
+  plot_ly(x = ~State, y = ~`Rate Person crime`, type = "bar", color = ~`Rate Person crime`, colors = "Dark2") %>%
+  layout(title = "Top 10 Total Crime against person per State, 2020",
+         xaxis = list(categoryorder = "array", 
+         categoryarray = ~State, title="State"),
+         yaxis = list(title="Rate"),
+         bargap = 0.5)
+```
+
+##### 4.3.3 Crime rate against property
+Now Colorado together with New Mexico are the leaders. I wouldn't recommend buying property there. \
+Idaho, Alaska and East Coast seem good places for buying property.
+```{r warning=FALSE, message=FALSE}
+df <- data_total %>%
+  filter(Year=='2021') %>% 
+  select('State', "Rate Property crime")
+
+
+df$State <- tolower(df$State)
+
+names(df) <- tolower(names(df)) 
+
+df <- df[!grepl("district of columbia", df$state),]
+
+
+state.info <- inner_join(data.frame(state=tolower(state.name), 
+                                    long=state.center$x, lat=state.center$y, 
+                                    stringsAsFactors=FALSE),
+                         data.frame(state=tolower(datasets::state.name), 
+                                    abbrev=datasets::state.abb))
+
+map.df <- inner_join(state.info, df, by="state")
+
+
+g <- list(scope='usa', projection=list(type='albers usa'), 
+          showlakes=TRUE, lakecolor=toRGB('white'))
+
+plot_ly(map.df, type='choropleth', locationmode='USA-states', 
+    locations=map.df$abbrev, z=map.df$`rate property crime`, text=map.df$state) %>% 
+    layout(geo=g, title='Frequency of crime against property by State, 2021')
+```
+
+##### 4.3.4 Crime rate against society
+This type of crime is important as it includes drugs, weapon law vialations, prostitution.\
+Surprisingly, North Dakota is the leader. Colorado and Arkansas are good here. As usual, East Coast is teh safest part of the country.
+```{r warning=FALSE, message=FALSE}
+df <- data_total %>%
+  filter(Year=='2021') %>% 
+  select('State', "Rate Society crime")
+
+
+df$State <- tolower(df$State)
+
+names(df) <- tolower(names(df)) 
+
+df <- df[!grepl("district of columbia", df$state),]
+
+
+state.info <- inner_join(data.frame(state=tolower(state.name), 
+                                    long=state.center$x, lat=state.center$y, 
+                                    stringsAsFactors=FALSE),
+                         data.frame(state=tolower(datasets::state.name), 
+                                    abbrev=datasets::state.abb))
+
+map.df <- inner_join(state.info, df, by="state")
+
+
+g <- list(scope='usa', projection=list(type='albers usa'), 
+          showlakes=TRUE, lakecolor=toRGB('white'))
+
+plot_ly(map.df, type='choropleth', locationmode='USA-states', 
+    locations=map.df$abbrev, z=map.df$`rate society crime`, text=map.df$state) %>% 
+    layout(geo=g, title='Frequency of crime against society by State, 2021')
+```
+
+#### 4.4 The most common crime
+
+It would be be good to understand the most common US crime. This is already something that society/politics can use to improve the situation in the country. \
+We are going to **pivot** the data to transform columns to rows. \
+The most crimes are related to property damage, not to the dangerous person or society types of crime.
+```{r warning=FALSE, message=FALSE}
+crime_by_type <- data_total[,!grepl("^Total",names(data_total))]
+
+crime_by_type %>% 
+    summarise(across(3:25, sum)) %>%
+    gather("offenses", "cases", 1:23) %>%
+    mutate(across('offenses', str_replace_all, '\n', ' ')) %>%
+  
+ggplot(aes(x=offenses, y=cases, group=1)) + 
+    geom_line(color='red') +
+    geom_point(size=3, color='red') +  
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Total cases for 2020, 2021 per crime type", x= "Type", y = "# of cases") +
+    scale_y_continuous(trans='log10')
+
+```
+
+### 5. Conclusion
+
+The work to define the safe/dangerous state is enormous. There are a lot of parameters to consider to define the safe states. In this project, we mostly looked only at the overall crime rates together with the major group of crime (crime against person/society/property). There is an additional difficulty to define the safe state because of the significant world changes. Covid policy was different in different states, a lot of people were locked at home, shops and entertainment centers were closed in 2020, a lot of people left their home to relocate. The situation was totally different in 2021 when everything opened again and people came back to their homes. That's why we observed different plots for the crime level for these two years, especially for the safest states.
+
+\setlength{\leftskip}{2cm} It happened that New Mexico, Arkansas, North Dakota, Colorado, Nevada are definitely not the places to relocate, especially if you leave on the East Coast. Overall, the South West of US is not safe, North Dakota is dangerous because of the society crime (drugs, weapons, prostitution), New Mexico and Colorado are not good for buying any property (theft, vandalism, etc), Arkansas/New Mexico/Nevada are bad places to ravel alone as there are the highest rate of crime against person (assault, homicide, sex offenses, etc). 
+
+\setlength{\leftskip}{2cm} East Coast appeared to be the best, especially it's north part. There are lowest crime rates for every major type of crime. New Jersey, Vermont is something to look at. \
+
+\setlength{\leftskip}{2cm} There are also good news that even the crime rate is so high in the US, the crime is mostly related to not deadly type such as theft, fraud, vandalism. But there is still an issue with high level of weapon law violation and drugs. 
+
+\setlength{\leftskip}{2cm} A lot of new tools were used during the project: openxlsx library to read the xlsx files, plot_ly for the interactive plots, ggthemes and maps to build the US map with crime density, kable to organize the data frames' display, etc. 
+
+\setlength{\leftskip}{2cm} We should look at the data for 2018, 2019, 2022 to better understand the trend in crime. But I am sure that 2022 will also differ drastically from the 2021 due to inflation, war, etc. Also, it would be helpful to have the data that includes  the demographic information to better understand why the particular type of crime is the highest in this particular state. Overall, there are so much more to discover besides the demographic and changes over years. As president elections are soon to happen, the data can be used for political purposes. People certainly want to know if the crime rate is higher at the republican or democratic states or how crime changed during presidency of democrats/republicans.
+
+
+
+### 6. Resources
+1) "How Safe Is The US: Crime Levels In The US" <https://www.moovaz.com/blog/how-safe-is-the-us-2/>
+
+2) FBI website <https://crime-data-explorer.app.cloud.gov/#>
+
+3) Crime Open Database <https://osf.io/zyaqn/>
+
+4) Plotly library <https://plotly.com/r/>
