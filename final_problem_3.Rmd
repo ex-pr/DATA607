@@ -1,0 +1,297 @@
+---
+title: "Problem 3 Final"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, include=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(psych)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(corrplot)
+library(ggpubr)
+library(pracma)
+library(matrixcalc)
+library(reshape2)
+library(DT)
+library(kableExtra)
+```
+
+### 3. Final Problem 3. 30 points
+
+#### 3.1 Descriptive and Inferential Statistics
+Load the data from the Github. The training dataset contains 1460 observations of 81 variables, test data contains 1459 observations of 80 variables.
+```{r}
+train_house <- read.csv('https://raw.githubusercontent.com/ex-pr/DATA607/final_exam/train.csv', header=TRUE, sep=",", check.names=FALSE)
+test_house <- read.csv('https://raw.githubusercontent.com/ex-pr/DATA607/final_exam/test.csv', header=TRUE, sep=",", check.names=FALSE)
+```
+
+Univariate descriptive statistics and appropriate plots for the training data set. \
+The descriptive statistics is provided by the package psych. The info available: count of not NA values, standard deviation, interquartile range, and standard error. Categorical variables are converted to numeric (marked with *).
+
+```{r, max.height='100px', echo=FALSE}
+datatable(describe(train_house), extensions = 'FixedColumns', options = list(dom = 't', scrollX = TRUE,
+    fixedColumns = TRUE))
+
+summary(train_house) %>% 
+  kable %>%
+  kable_styling("striped", full_width = F) %>% 
+ scroll_box(width = "900px", height = "400px")
+
+```
+
+Let's check the distribution of the sale price for the training data frame. The distribution is right skewed. Min price is 34900, max price is 755000.
+```{r warning=FALSE, message=FALSE}
+train_house %>%
+ggplot(aes(x=SalePrice)) + 
+    geom_histogram(aes(y = ..density..)) +
+  geom_density(col='red', size = 2) +
+    theme(axis.text.x = element_text(vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Distribution of house prices", x= "Price", y = "Count") 
+```
+
+We can also built some graphs to see if there is any connection between price and year built
+```{r}
+train_house %>%
+ggplot(aes(x=YearBuilt, y=SalePrice)) + 
+    geom_point() +
+    theme(axis.text.x = element_text(vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Distribution of house prices per year", x= "Year", y = "Sale Price") 
+```
+
+Usually, people have more than 5 rooms above grade (does not include bathrooms)
+```{r warning=FALSE, message=FALSE}
+columns <- c('FullBath', 'TotRmsAbvGrd', 'GarageCars')
+data <- melt(train_house[columns])
+
+
+ggplot(data, aes(x = variable, y = value)) +   geom_boxplot()
+```
+
+Provide a scatterplot matrix for at least two of the independent variables and the dependent variable. \
+The dependent variable is Sale Price, the independent variables are Above grade (ground) living area square feet, Garage area as it seems to be correlation between these variables.
+```{r warning=FALSE, message=FALSE}
+train_house %>%
+ggplot(aes(x = SalePrice, y = GarageArea)) + 
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", color = 'red')  +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Distribution of house prices per living area", x= "Sale Price", y = "Above ground living area, sq.ft") 
+```
+
+```{r warning=FALSE, message=FALSE}
+train_house %>%
+ggplot(aes(x = SalePrice, y = GrLivArea)) + 
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", color = 'red')  +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Distribution of house prices per Garage area", x= "Sale Price", y = "Garage area") 
+```
+
+Derive a correlation matrix for any three quantitative variables in the dataset. \
+The variable are 'LotArea', 'GarageArea', 'GrLivArea'. There is definitely the correlation between garage area/living area above ground and sale price. 
+
+```{r}
+salePrice <- train_house$SalePrice
+areaLot <- train_house$LotArea
+garageArea <- train_house$GarageArea
+livAreaF <- train_house$GrLivArea
+df <- data.frame(salePrice,areaLot,garageArea,livAreaF)
+colnames(df) <- c("SalePrice", "LotArea",  "GarageArea", "GrLivArea")
+
+corr_results <- cor(df)
+round(corr_results, 3)
+
+corrplot(corr_results, type = "lower", order = "original", tl.srt = 0)
+```
+
+Test the hypotheses that the correlations between each pairwise set of variables is 0 and provide an 80% confidence interval.  Discuss the meaning of your analysis. Would you be worried about familywise error? Why or why not? \
+**H0: the correlations is 0** \
+**H1: the correlations is not 0** \
+We will use function cor.test of the ggpubr package to test the hypotheses. The data contains missing data and outliers. There are many variables that can affect the sale price. For now, we found some of them: the year built, living area above ground, garage area. \
+Once we run the test, we see that we should reject the null hypothesis about the correlation being equal to 0 and accept alternative hypothesis (the correlations is not 0). We should do it because the correlation is 0.18, 0.47, 0.26 which is significant as p-value < 2.2e-16 is much less than the significance level of 0.05.\
+And yes, we should expect the familywise (type I) error with the 80% confidence interval, the significance level of 0.05. The chance to get this error is 14.26% for the multiple comparisons we made.
+```{r}
+corr_GarageArea_LotArea <- cor.test(df$GarageArea, df$LotArea, method = "pearson", conf.level=0.8)
+corr_GarageArea_LotArea
+corr_Garagearea_GrLivArea <- cor.test(df$GarageArea, df$GrLivArea , method = "pearson", conf.level=0.8)
+corr_Garagearea_GrLivArea
+corr_GrLivArea_LotArea <- cor.test(df$GrLivArea, df$LotArea , method = "pearson", conf.level=0.8)
+corr_GrLivArea_LotArea
+```
+
+```{r}
+n <- 3
+a <- .05
+1 - (1-a)^n
+```
+
+#### 3.2 Linear Algebra and Correlation
+Invert your correlation matrix from above. \ 
+The original correlation matrix:
+```{r}
+cor_data <- data.frame(areaLot,garageArea,livAreaF)
+colnames(df) <- c("LotArea",  "GarageArea", "GrLivArea")
+cor_data <- cor(cor_data, method = "pearson", use = "complete.obs") 
+
+cor_matrix <- data.matrix(cor_data )
+rownames(cor_matrix) <- c("LotArea",  "GarageArea", "GrLivArea")
+colnames(cor_matrix) <- c("LotArea",  "GarageArea", "GrLivArea")
+cor_matrix
+```
+The inverted:
+```{r}
+precision_matrix <- solve(cor_matrix)
+precision_matrix
+```
+Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. \
+We get the same results: identity matrices.
+```{r}
+matrix1 <- round(cor_matrix %*% precision_matrix, 2)
+matrix1
+matrix2 <- round(precision_matrix %*% cor_matrix, 2)
+matrix2
+```
+
+Conduct LU decomposition on the matrix. 
+```{r}
+decomp <- lu.decomposition(cor_matrix)
+#The lower triangular matrix L 
+decomp$L
+#The upper triangular matrix U
+decomp$U
+```
+To check the work, we can multiply L by U and get the correlation matrix again:
+```{r}
+decomp$L %*% decomp$U
+```
+
+#### 3.3 Calculus-Based Probability & Statistics
+Many times, it makes sense to fit a closed form distribution to data. Select a variable in the Kaggle.com training dataset that is skewed to the right, shift it so that the minimum value is absolutely above zero if necessary. \
+To see what variables are skewed to the right, we will build the graph below:
+```{r warning=FALSE, message=FALSE}
+train_house %>%
+  keep(is.numeric) %>%
+  gather() %>% 
+  ggplot(aes(value)) +
+  facet_wrap(~ key, scales = "free") +
+  geom_histogram(bins = 100)
+```
+
+I decided to choose the living are above ground 'GrLivArea':
+```{r warning=FALSE, message=FALSE}
+train_house %>%
+ggplot(aes(x=GrLivArea)) + 
+    geom_histogram() +
+    theme(axis.text.x = element_text(vjust = 0.5, hjust=1), plot.title = element_text(hjust = 0.5), panel.background = element_rect(fill = "white", colour = "grey",     size = 0.5, linetype = "solid"), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "grey"),) +
+    labs(title="Distribution of the living area", x= "Are, sq.ft", y = "Count") 
+```
+
+```{r}
+data <- train_house$GrLivArea
+describe(data)
+summary(data)
+```
+
+Load the MASS package and run fitdistr to fit an exponential probability density function:
+```{r warning=FALSE, message=FALSE}
+library(MASS)
+exp_prob <- fitdistr(data, densfun="exponential")
+```
+
+Find the optimal value of λ for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, λ)). \
+The lambda is 0.000659864. 
+```{r}
+#lambda is 0.000659864 
+lambda <- exp_prob$estimate
+
+samples <- rexp(1000,lambda)
+
+```
+Plot a histogram and compare it with a histogram of your original variable. \
+The histogram is still right-skewed, though it looks more uniformly distributed. 
+```{r}
+par(mfrow=c(1,2))
+summary(samples)
+hist(samples)
+hist(data)
+```
+
+Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF). \
+The 5th percentile is 77.73and 95th percentile is 4539.92.
+```{r}
+qexp(.05, rate=lambda)
+qexp(.95, rate=lambda)
+
+```
+
+Also generate a 95% confidence interval from the empirical data, assuming normality. Finally, provide the empirical 5th percentile and 95th percentile of the data. Discuss. \
+The 95% confidence interval from the t-test: from 1488.487 to 1542.440. The empirical 5th percentile is 848, the 95th percentile 2466.1.\
+We used a fitted distribution instead of empirical data. The histograms for fitted distribution and  empirical data are both right skewed, though empirical data slightly skewed to the left. The percentiles are reasonably close (77/848 versus 4539/2466). The population means are also close (1515/1530).
+```{r}
+t <- t.test(data,conf.level=0.95)
+t
+quantile(data, c(0.05, 0.95))
+```
+
+#### 3.4 Modeling
+Build some type of multiple regression model and submit your model to the competition board. Provide your complete model summary and results with analysis. Report your Kaggle.com user name and score. \
+At the first attempt, we will include numeric columns that have no NA (LotFrontage, GarageYrBlt) to see how they are related to Sale Price. We will stay with the variables that have small p-value: MSSubClass, LotArea, OverallQual, OverallCond, YearBuilt, MasVnrArea,BsmtFinSF1, 1stFlrSF, 2ndFlrSF, BedroomAbvGr, GarageCars.
+```{r}
+df <- train_house %>% 
+  select_if(is.numeric) 
+colSums(is.na(df))
+
+
+df <- df[,-c(3,26)]
+
+
+first <- lm(SalePrice~.,data=df)
+summary(first)
+```
+We will also add some factor variables that look related to the Sale Price. The p-value is sagnificantly small, R-value is 0.81, the mdoel explains 81% of the data which is good:
+```{r}
+df <-  train_house %>% dplyr::select(MSSubClass, LotArea, OverallQual, OverallCond, YearBuilt, MasVnrArea, `BsmtFinSF1`, `1stFlrSF`, `2ndFlrSF`, BedroomAbvGr, GarageCars, SalePrice, ExterQual) 
+second <- lm(SalePrice~.,data=df)
+summary(second)
+```
+We should check the model using the residuals. We will use the results as residuals are somewhere around 0 and along the normal distribution.
+```{r}
+par(mfrow=c(2,2))
+plot(second)
+```
+
+Next, we will predict the data using test data frame. Select the necessary columns and substitute :
+```{r}
+test_df <- test_house %>% dplyr::select(MSSubClass, LotArea, OverallQual, OverallCond, YearBuilt, MasVnrArea, `BsmtFinSF1`, `1stFlrSF`, `2ndFlrSF`, BedroomAbvGr, GarageCars, ExterQual)  
+
+
+
+test_df <- test_df %>% 
+          mutate(BsmtFinSF1 = coalesce(BsmtFinSF1, 0)) %>% 
+          mutate(GarageCars = coalesce(GarageCars, 0)) %>%
+          mutate(MasVnrArea = coalesce(MasVnrArea, 0))  
+
+colSums(is.na(test_df))
+```
+Using function predict() and the model we built, we can predict the sale price. We will do some adjustments to fit the kaggle submission criteria: add id column, remove rows' index and write to the file. File is also available at the Github repo: <https://github.com/ex-pr/DATA607/blob/final_exam/prediction.csv>
+```{r}
+prediction <- predict(second, test_df)
+prediction <- as.data.frame(prediction)
+names(prediction )[1] <- "SalePrice"
+
+prediction$Id <- test_house$Id
+prediction <- prediction[,c(2,1)]
+head(prediction)
+
+write.csv(prediction,"C:/Users/daria/Documents/prediction.csv", row.names = FALSE)
+```
+
+**Kaggle results: 0.17298, User name: dariadubovskaia**
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ex-pr/DATA607/final_exam/kaggle.png">
+</p>
+
+
