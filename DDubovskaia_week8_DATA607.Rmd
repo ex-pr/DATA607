@@ -1,0 +1,161 @@
+---
+title: "Working with XML and JSON in R"
+author: "Daria Dubovskaia"
+output: html_document
+---
+
+```{r setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+library(textreadr)
+library(dplyr)
+library(rvest)
+library(XML)
+library(RCurl)
+library(RJSONIO)
+library(httr)
+library(jsonlite)
+```
+
+### 1. Pick three of your favorite books on one of your favorite subjects. At least one of the books should have more than one author. For each book, include the title, authors, and two or three other attributes that you find interesting.
+I chose Harry Potter and the Philosopher's Stone by	J.K. Rowling, Labyrinth of Reflections by	Sergei Lukyanenko, Good Omens	by Neil Gaiman and Terry Pratchett.
+
+### 2. Take the information that you’ve selected about these three books, and separately create three files which store the book’s information in HTML (using an html table), XML, and JSON formats (e.g. “books.html”, “books.xml”, and “books.json”). 
+Using Notepad, we can create the text files "by hand" in tml, xml and json formats. The code to create tables is below. <br>
+The easiest table to create is json table, the html table takes a lot of time. <br>
+HTML table.
+```{html eval=FALSE}
+<!DOCTYPE html>
+<html>
+  <head>
+<style>
+table {
+  font-family: tahoma, san-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 6px;
+}
+
+</style>
+</head>
+<body>
+
+<h1 style="text-align: center;">Favorite Books</h1>
+
+<table>
+  <tr>
+    <th>Title</th>
+    <th>Author(s)</th>
+    <th>Genre</th>
+    <th>Publication year</th>
+    <th>Publisher</th>
+  </tr>
+  <tr>
+    <td>Harry Potter and the Philosopher's Stone</td>
+    <td>J.K. Rowling</td>
+    <td>Fantasy</td>
+    <td>1997</td>
+    <td>Bloomsbury</td>
+  </tr>
+    <tr>
+    <td>Labyrinth of Reflections</td>
+    <td>Sergei Lukyanenko</td>
+    <td>Fantasy</td>
+    <td>1997</td>
+    <td>AST</td>
+  </tr>
+    <tr>
+    <td>Good Omens</td>
+    <td>Neil Gaiman,Terry Pratchett</td>
+    <td>Fantasy</td>
+    <td>1990</td>
+    <td>Gollancz</td>
+  </tr>
+</table>
+
+</body>
+</html>
+```
+XML table.
+```{xml eval=FALSE}
+<?xml version="1.0" encoding="UTF-8"?>
+<LIBRARY>
+	<BOOK>
+		<Title>Harry Potter and the Philosopher's Stone</Title>
+		<Authors>J.K. Rowling</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1997</Publication_year>
+  		<Publisher>Bloomsbury</Publisher>
+	</BOOK>
+	<BOOK>
+		<Title>Labyrinth of Reflections</Title>
+		<Authors>Sergei Lukyanenko</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1997</Publication_year>
+		<Publisher>AST</Publisher>
+	</BOOK>
+	<BOOK>
+		<Title>Good Omens</Title>
+		<Authors>Neil Gaiman,Terry Pratchett</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1990</Publication_year>
+		<Publisher>Gollancz</Publisher>
+	</BOOK>
+</LIBRARY>
+```
+JSON table.
+```{json eval=FALSE}
+{"library":[
+	{"Title":"Harry Potter and the Philosopher's Stone","Authors":"J.K. Rowling","Genre":"Fantasy","Publication year":1997,"Publisher":"Bloomsbury"},
+	{"Title":"Labyrinth of Reflections","Authors":"Sergei Lukyanenko","Genre":"Fantasy","Publication year":1997,"Publisher":"AST"},
+	{"Title":"Good Omens","Authors":["Neil Gaiman,Terry Pratchett"],"Genre":"Fantasy","Publication year":1990,"Publisher":"Gollancz"}
+	]}
+```
+### 3. Write R code, using your packages of choice, to load the information from each of the three sources into separate R data frames.
+#### 3.1 HTML Table
+First, we need to read the html code from the URL and then transform it to the table using function  html_table(). The function html_table() creates tibble from our html document. Last step is to transform it to the data frame using function as.data.frame(). If we don't use it, we will have tibble instead of data frame. Also, we will check the type of each column to compare with other data frames from other tables.
+```{r}
+html_url <- "https://raw.githubusercontent.com/ex-pr/DATA607/week8/books.html"
+
+html_table <- read_html(html_url) %>% html_table(fill=TRUE)
+html_table <- as.data.frame(html_table, optional = TRUE)
+html_table
+sapply(html_table,class)
+```
+#### 3.2 XML Table
+To start, we will to read the XML code from the URL using function  GET(). One we get the information from our online file, we use function xmlTreeParse() to parse the file, and generate an R structure representing the XML tree. Last step is to transform the tree into xmlToDataFrame().
+```{r}
+xml_url <- "https://raw.githubusercontent.com/ex-pr/DATA607/week8/books.xml"
+xml_url = GET(xml_url)
+xml_table <- xmlTreeParse(xml_url, useInternal=TRUE)
+xml_table <- xmlToDataFrame(xml_table)
+xml_table
+sapply(xml_table,class)
+```
+
+#### 3.3 JSON Table
+First of all, we will to read the json code from the URL using function  fromJSON(), we will get the  list of list containing our book data. Next, take the element "library" that contains our information about the books. Last step is to transform the list into data frame as.data.frame(). Also, we will check the type of each column to compare with other data frames from other tables.
+```{r}
+json_url <- "https://raw.githubusercontent.com/ex-pr/DATA607/week8/books.json"
+json_table<-fromJSON(json_url)
+json_table<-json_table[['library']]
+json_table <- as.data.frame(json_table, optional = TRUE)
+json_table
+sapply(json_table,class)
+```
+#### 4. Conclusion.  Are the three data frames identical?
+There are three data frames from three different files. The information inside of these tables is identical<br>
+The main difference is the data types of the columns of the data frames with got from the html, XML and json files. The HTML table shows the most correct results: integer for the year of publication and character for the rest. <br>
+The XML data frame shows all columns as character, so we will need to do an additional work to transform columns that should be numeric instead of character. <br>
+The JSON table has multiple authors as a list due to the nature of the JSON file, so we should be careful when working with this column and it looks like more correct for storing multiple authors. The column with year is numeric.<br>
+Another difference is that XML and HTML files gave us data frame with 3 objects of 5 variables while XML gave us data frame with 3 objects of 6 variables.
+In total, the html file is the most difficult to construct, the easiest is json. The XML file is the most challenging to parse, the easiest is json. For me, personally, in terms of the resulting data frame, the data frame from the html file is the easiest to work with. <br>
+Overall, the json table is more preferable and less time consuming.
+```{r}
+sapply(html_table,class)
+sapply(xml_table,class)
+sapply(json_table,class)
+```

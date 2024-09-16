@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LIBRARY>
+	<BOOK>
+		<Title>Harry Potter and the Philosopher's Stone</Title>
+		<Authors>J.K. Rowling</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1997</Publication_year>
+  		<Publisher>Bloomsbury</Publisher>
+	</BOOK>
+	<BOOK>
+		<Title>Labyrinth of Reflections</Title>
+		<Authors>Sergei Lukyanenko</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1997</Publication_year>
+		<Publisher>AST</Publisher>
+	</BOOK>
+	<BOOK>
+		<Title>Good Omens</Title>
+		<Authors>Neil Gaiman,Terry Pratchett</Authors>
+		<Genre>Fantasy</Genre>
+		<Publication_year>1990</Publication_year>
+		<Publisher>Gollancz</Publisher>
+	</BOOK>
+</LIBRARY>
